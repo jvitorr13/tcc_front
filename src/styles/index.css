@@ -1,0 +1,79 @@
+@import "tailwindcss";
+
+/*
+  Design tokens do sistema — consultoria empresarial.
+  Paleta: "ink navy" (autoridade, confiança) + "brass gold" (prestígio,
+  usado com moderação em focos/realces). Tipografia: serifada de exibição
+  (Fraunces) para headlines/marca, sans neutra (Inter) para UI e dados.
+*/
+@theme {
+  --font-display: "Fraunces", "Georgia", serif;
+  --font-sans: "Inter", "Segoe UI", system-ui, sans-serif;
+
+  --color-ink-950: #0a1420;
+  --color-ink-900: #0f1b2d;
+  --color-ink-800: #16294a;
+  --color-ink-700: #1f3760;
+  --color-ink-600: #24406f;
+  --color-ink-500: #3a5a8f;
+
+  --color-gold-600: #9c7a30;
+  --color-gold-500: #b7913c;
+  --color-gold-400: #cba658;
+  --color-gold-100: #f4ead0;
+
+  --color-surface: #ffffff;
+  --color-canvas: #f6f7f9;
+
+  --color-danger-600: #b3271f;
+  --color-danger-500: #c0362c;
+  --color-danger-50: #fdf1f0;
+}
+
+html {
+  font-family: var(--font-sans);
+}
+
+/* Foco visível consistente em todo o app (acessibilidade) */
+:focus-visible {
+  outline: 2px solid var(--color-gold-500);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Traço do gráfico de trajetória no painel de marca (tela de login) */
+@keyframes draw-path {
+  from {
+    stroke-dashoffset: var(--path-length, 1000);
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.animate-draw-path {
+  stroke-dasharray: var(--path-length, 1000);
+  animation: draw-path 1.8s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.5s ease-out forwards;
+}
