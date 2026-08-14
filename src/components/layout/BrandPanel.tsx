@@ -1,9 +1,8 @@
-import { ClipboardCheck, LineChart, Target } from "lucide-react";
-
+import { ClipboardCheck, Compass, LineChart, Target } from "lucide-react";
 
 export function BrandPanel() {
   return (
-<div className="relative hidden min-h-screen flex-col justify-between overflow-hidden bg-ink-900 p-10 text-white lg:flex lg:w-[46%] xl:p-14">      {}
+    <div className="relative hidden min-h-screen flex-col justify-between overflow-hidden bg-ink-900 p-10 text-white lg:flex lg:w-[46%] xl:p-14">
       <div
         className="pointer-events-none absolute inset-0 opacity-[0.06]"
         style={{
@@ -14,13 +13,20 @@ export function BrandPanel() {
         aria-hidden="true"
       />
 
-      <div className="relative z-10 animate-fade-in-up">
-        <p className="mt-0.5 text-xs uppercase tracking-[0.2em] text-gold-400/90">
+      <div className="relative z-10 flex animate-fade-in-up items-center gap-2.5">
+        <span className="flex size-9 items-center justify-center rounded-lg bg-white/10 text-gold-400">
+          <Compass size={18} />
+        </span>
+        <span className="text-xs font-medium uppercase tracking-[0.2em] text-white/60">
           Consultoria Empresarial
-        </p>
+        </span>
       </div>
 
-      <div className="relative z-10">
+      <div className="relative z-10 animate-fade-in-up">
+        <p className="mb-7 max-w-xs font-display text-xl leading-snug text-white/90">
+          Diagnóstico, plano de ação e acompanhamento em um só lugar.
+        </p>
+
         <svg
           viewBox="0 0 360 200"
           fill="none"

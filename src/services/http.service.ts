@@ -15,8 +15,8 @@ import type { ApiEnvelope, ApiListEnvelope } from "@/types/api";
  *   };
  */
 export const httpService = {
-  async list<T>(path: string): Promise<{ items: T[]; meta: unknown }> {
-    const response = await apiClient.get<ApiListEnvelope<T>>(path);
+  async list<T>(path: string, params?: Record<string, unknown>): Promise<{ items: T[]; meta: unknown }> {
+    const response = await apiClient.get<ApiListEnvelope<T>>(path, { params });
     return { items: response.data.data ?? [], meta: response.data.meta };
   },
 

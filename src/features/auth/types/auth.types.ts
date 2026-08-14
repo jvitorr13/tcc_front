@@ -12,6 +12,8 @@ export interface AuthUser {
   nome: string;
   email: string;
   tipo_usuario: TipoUsuario;
+  /** Só preenchido para usuários com tipo_usuario "EMPRESA". */
+  empresa_id?: string;
   ativo: boolean;
 }
 
@@ -24,4 +26,11 @@ export interface LoginResult {
   accessToken: string;
   refreshToken?: string;
   user: AuthUser;
+}
+
+export interface RegisterCredentials {
+  nome: string;
+  email: string;
+  senha: string;
+  tipo_usuario: TipoUsuario;
 }

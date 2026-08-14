@@ -1,6 +1,8 @@
 import { Route, Routes } from "react-router-dom";
 
-import { LoginPage } from "@/features/auth";
+import { LoginPage, RegisterPage } from "@/features/auth";
+import { CreateEmpresaPage, EditEmpresaPage, EmpresasListPage } from "@/features/empresas";
+import { CreateUserPage, EditUserPage, UsersListPage } from "@/features/users";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import { ProtectedRoute } from "@/routes/ProtectedRoute";
@@ -27,6 +29,15 @@ export function AppRoutes() {
       />
 
       <Route
+        path={ROUTES.register}
+        element={
+          <PublicRoute>
+            <RegisterPage />
+          </PublicRoute>
+        }
+      />
+
+      <Route
         path={ROUTES.dashboard}
         element={
           <ProtectedRoute>
@@ -35,9 +46,62 @@ export function AppRoutes() {
         }
       />
 
+      <Route
+        path={ROUTES.usuarios}
+        element={
+          <ProtectedRoute>
+            <UsersListPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path={ROUTES.usuariosNovo}
+        element={
+          <ProtectedRoute>
+            <CreateUserPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path={ROUTES.usuariosEditar}
+        element={
+          <ProtectedRoute>
+            <EditUserPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path={ROUTES.empresas}
+        element={
+          <ProtectedRoute>
+            <EmpresasListPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path={ROUTES.empresasNovo}
+        element={
+          <ProtectedRoute>
+            <CreateEmpresaPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path={ROUTES.empresasEditar}
+        element={
+          <ProtectedRoute>
+            <EditEmpresaPage />
+          </ProtectedRoute>
+        }
+      />
+
       {/*
         Próximos módulos (ainda sem tela, só a rota reservada):
-        <Route path={ROUTES.empresas} element={<ProtectedRoute><EmpresasPage /></ProtectedRoute>} />
         <Route path={ROUTES.diagnosticos} element={<ProtectedRoute><DiagnosticosPage /></ProtectedRoute>} />
         <Route path={ROUTES.planoAcao} element={<ProtectedRoute><PlanoAcaoPage /></ProtectedRoute>} />
         <Route path={ROUTES.tarefas} element={<ProtectedRoute><TarefasPage /></ProtectedRoute>} />

@@ -1,0 +1,31 @@
+import type { TipoUsuario } from "@/features/auth";
+
+/**
+ * Tipos do domínio de gestão de usuários (CRUD feito por quem já está
+ * logado). `AuthUser` — o registro em si — continua vindo de features/auth,
+ * já que é o mesmo usuário que loga no sistema; aqui só ficam os shapes de
+ * entrada específicos deste CRUD (create/update/filtros).
+ */
+
+export interface CreateUserInput {
+  nome: string;
+  email: string;
+  senha: string;
+  tipo_usuario: TipoUsuario;
+  /** Obrigatório quando tipo_usuario é "EMPRESA"; omitido para "CONSULTOR". */
+  empresa_id?: string;
+  ativo: boolean;
+}
+
+export interface UpdateUserInput {
+  nome: string;
+  email: string;
+  tipo_usuario: TipoUsuario;
+  empresa_id?: string;
+  ativo: boolean;
+}
+
+export interface UsersFilters {
+  tipo_usuario?: TipoUsuario;
+  ativo?: boolean;
+}
