@@ -1,6 +1,7 @@
 import { Route, Routes } from "react-router-dom";
 
 import { LoginPage, RegisterPage } from "@/features/auth";
+import { CreateDiagnosticoPage, DiagnosticoDetalhePage, DiagnosticosListPage } from "@/features/diagnosticos";
 import { CreateEmpresaPage, EditEmpresaPage, EmpresasListPage } from "@/features/empresas";
 import { CreateUserPage, EditUserPage, UsersListPage } from "@/features/users";
 import { DashboardPage } from "@/pages/DashboardPage";
@@ -100,9 +101,35 @@ export function AppRoutes() {
         }
       />
 
+      <Route
+        path={ROUTES.diagnosticos}
+        element={
+          <ProtectedRoute>
+            <DiagnosticosListPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path={ROUTES.diagnosticosNovo}
+        element={
+          <ProtectedRoute>
+            <CreateDiagnosticoPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path={ROUTES.diagnosticoDetalhe}
+        element={
+          <ProtectedRoute>
+            <DiagnosticoDetalhePage />
+          </ProtectedRoute>
+        }
+      />
+
       {/*
         Próximos módulos (ainda sem tela, só a rota reservada):
-        <Route path={ROUTES.diagnosticos} element={<ProtectedRoute><DiagnosticosPage /></ProtectedRoute>} />
         <Route path={ROUTES.planoAcao} element={<ProtectedRoute><PlanoAcaoPage /></ProtectedRoute>} />
         <Route path={ROUTES.tarefas} element={<ProtectedRoute><TarefasPage /></ProtectedRoute>} />
       */}

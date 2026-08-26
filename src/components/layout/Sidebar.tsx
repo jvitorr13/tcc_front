@@ -1,4 +1,4 @@
-import { Building2, Compass, Home, Users } from "lucide-react";
+import { Building2, ClipboardList, Compass, Home, Users } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
 import { ROUTES } from "@/constants/routes";
@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { to: ROUTES.dashboard, label: "Início", icon: Home, end: true },
   { to: ROUTES.usuarios, label: "Usuários", icon: Users, end: false },
   { to: ROUTES.empresas, label: "Empresas", icon: Building2, end: false },
+  { to: ROUTES.diagnosticos, label: "Diagnósticos", icon: ClipboardList, end: false },
 ];
 
 /**

@@ -16,9 +16,13 @@ export const ROUTES = {
   empresas: "/empresas",
   empresasNovo: "/empresas/novo",
   empresasEditar: "/empresas/:id/editar",
+  diagnosticos: "/diagnosticos",
+  diagnosticosNovo: "/diagnosticos/novo",
+  // Uma tela só, que mostra o formulário de perguntas (RASCUNHO/EM_ANDAMENTO)
+  // ou o resultado (CONCLUIDO) dependendo do status do diagnóstico.
+  diagnosticoDetalhe: "/diagnosticos/:id",
 
   // Preparado para os próximos módulos do sistema de consultoria.
-  diagnosticos: "/diagnosticos",
   perguntas: "/perguntas",
   respostas: "/respostas",
   planoAcao: "/plano-de-acao",
@@ -33,4 +37,15 @@ export function usuarioEditarPath(id: string): string {
 /** Resolve o path real de edição de uma empresa a partir do :id da rota. */
 export function empresaEditarPath(id: string): string {
   return `/empresas/${id}/editar`;
+}
+
+/**
+ * Resolve o path real da tela de detalhe (responder/resultado) de um
+ * diagnóstico. Carrega `empresa_id` na própria URL (?empresa=) porque não
+ * existe GET /diagnosticos/:id no backend — a tela busca o diagnóstico
+ * dentro da lista da empresa (ver useDiagnosticoQuery), então precisa
+ * saber a empresa mesmo num acesso direto/refresh da página.
+ */
+export function diagnosticoDetalhePath(id: string, empresaId: string): string {
+  return `/diagnosticos/${id}?empresa=${empresaId}`;
 }
