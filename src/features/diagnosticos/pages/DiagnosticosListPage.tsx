@@ -1,4 +1,4 @@
-import { Plus } from "lucide-react";
+import { Plus, Settings2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 
@@ -116,13 +116,22 @@ export function DiagnosticosListPage() {
     <AppLayout>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="font-display text-2xl text-ink-900">Diagnósticos</h1>
-        <Link
-          to={ROUTES.diagnosticosNovo}
-          className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-ink-900 px-4 text-sm font-medium text-white transition-colors hover:bg-ink-800"
-        >
-          <Plus size={16} />
-          Novo diagnóstico
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link
+            to={ROUTES.questionarioModelos}
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-ink-900/10 bg-canvas px-4 text-sm font-medium text-ink-900 transition-colors hover:bg-ink-900/5"
+          >
+            <Settings2 size={16} />
+            Modelos de diagnóstico
+          </Link>
+          <Link
+            to={ROUTES.diagnosticosNovo}
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-ink-900 px-4 text-sm font-medium text-white transition-colors hover:bg-ink-800"
+          >
+            <Plus size={16} />
+            Novo diagnóstico
+          </Link>
+        </div>
       </div>
 
       <div className="mt-6 max-w-sm">

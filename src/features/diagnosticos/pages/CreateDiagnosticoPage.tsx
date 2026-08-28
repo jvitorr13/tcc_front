@@ -32,6 +32,11 @@ export function CreateDiagnosticoPage() {
   const { data: consultores, isLoading: isLoadingConsultores } = useUsersQuery({ tipo_usuario: "CONSULTOR" });
   const { mutateAsync, isPending, error } = useCreateDiagnosticoMutation();
 
+  // Só modelos ativados (POST /modelos/:id/ativar) podem ser aplicados a um
+  // diagnóstico — um modelo em rascunho pode não ter todas as perguntas
+  // cadastradas ainda.
+  const modelosAtivos = (modelos ?? []).filter((modelo) => modelo.ativo);
+
   // Só monta o formulário depois que empresas/consultores/modelos chegam:
   // o campo Consultor já nasce pré-selecionado com o usuário logado via
   // defaultValues do react-hook-form, e isso só funciona se a opção
@@ -64,7 +69,7 @@ export function CreateDiagnosticoPage() {
           <CreateDiagnosticoForm
             empresas={empresas ?? []}
             consultores={consultores ?? []}
-            modelos={modelos ?? []}
+            modelos={modelosAtivos}
             defaultConsultorId={user?.id ?? ""}
             onSubmit={handleSubmit}
             onCancel={() => navigate(ROUTES.diagnosticos)}

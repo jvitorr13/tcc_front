@@ -3,9 +3,13 @@ export { CreateDiagnosticoPage } from "@/features/diagnosticos/pages/CreateDiagn
 export { DiagnosticoDetalhePage } from "@/features/diagnosticos/pages/DiagnosticoDetalhePage";
 
 export { DiagnosticosTable } from "@/features/diagnosticos/components/DiagnosticosTable";
+export { AreaAccordion } from "@/features/diagnosticos/components/AreaAccordion";
 export { CreateDiagnosticoForm } from "@/features/diagnosticos/components/CreateDiagnosticoForm";
+export { LikertLegend } from "@/features/diagnosticos/components/LikertLegend";
 export { PerguntaScale } from "@/features/diagnosticos/components/PerguntaScale";
 export { ResultadoResumo } from "@/features/diagnosticos/components/ResultadoResumo";
+
+export { LIKERT_LABELS } from "@/features/diagnosticos/constants/likert";
 
 export { diagnosticosService } from "@/features/diagnosticos/services/diagnosticos.service";
 export { useDiagnosticosQuery } from "@/features/diagnosticos/hooks/useDiagnosticosQuery";

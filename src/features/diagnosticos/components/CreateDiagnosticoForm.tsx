@@ -1,12 +1,14 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ClipboardCheck } from "lucide-react";
 import { useForm } from "react-hook-form";
+import { Link } from "react-router-dom";
 
 import { ErrorMessage } from "@/components/feedback/ErrorMessage";
 import { FormField } from "@/components/forms/FormField";
 import { SelectField } from "@/components/forms/SelectField";
 import { TextareaField } from "@/components/forms/TextareaField";
 import { Button } from "@/components/ui/Button";
+import { ROUTES } from "@/constants/routes";
 
 import type { AuthUser } from "@/features/auth";
 import type { Empresa } from "@/features/empresas";
@@ -103,7 +105,11 @@ export function CreateDiagnosticoForm({
 
       {modelos.length === 0 && (
         <p className="rounded-lg border border-gold-500/25 bg-gold-100/40 px-3.5 py-2.5 text-sm text-ink-700">
-          Nenhum modelo de diagnóstico disponível ainda. Configure um modelo antes de criar um diagnóstico.
+          Nenhum modelo de diagnóstico ativo ainda.{" "}
+          <Link to={ROUTES.questionarioModelos} className="font-medium underline underline-offset-2">
+            Crie e ative um modelo
+          </Link>{" "}
+          antes de criar um diagnóstico.
         </p>
       )}
 

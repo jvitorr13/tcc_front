@@ -18,14 +18,22 @@ export const ROUTES = {
   empresasEditar: "/empresas/:id/editar",
   diagnosticos: "/diagnosticos",
   diagnosticosNovo: "/diagnosticos/novo",
+  // Subárea de Diagnósticos, não um módulo próprio no menu lateral — ver
+  // Sidebar.tsx e o botão "Modelos de diagnóstico" em DiagnosticosListPage.
+  questionarioModelos: "/diagnosticos/modelos",
+  questionarioModelosNovo: "/diagnosticos/modelos/novo",
   // Uma tela só, que mostra o formulário de perguntas (RASCUNHO/EM_ANDAMENTO)
   // ou o resultado (CONCLUIDO) dependendo do status do diagnóstico.
   diagnosticoDetalhe: "/diagnosticos/:id",
 
-  // Preparado para os próximos módulos do sistema de consultoria.
+  planoAcao: "/plano-de-acao",
+  indicadores: "/indicadores",
+  configuracoes: "/configuracoes",
+
+  // Preparado para os próximos módulos do sistema de consultoria — ainda
+  // sem entrada no menu nem página própria.
   perguntas: "/perguntas",
   respostas: "/respostas",
-  planoAcao: "/plano-de-acao",
   tarefas: "/tarefas",
 } as const;
 

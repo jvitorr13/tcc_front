@@ -1,5 +1,6 @@
 import { cn } from "@/utils/cn";
 
+import { LIKERT_LABELS } from "@/features/diagnosticos/constants/likert";
 import type { Pergunta } from "@/features/diagnosticos/types/diagnostico.types";
 
 export interface PerguntaScaleProps {
@@ -33,24 +34,29 @@ export function PerguntaScale({ pergunta, value, onAnswer, isSaving }: PerguntaS
       </p>
 
       <div className="mt-3 flex flex-wrap gap-2" role="radiogroup" aria-label={pergunta.texto}>
-        {valores.map((valor) => (
-          <button
-            key={valor}
-            type="button"
-            role="radio"
-            aria-checked={value === valor}
-            onClick={() => onAnswer(valor)}
-            disabled={isSaving}
-            className={cn(
-              "flex size-10 items-center justify-center rounded-lg border text-sm font-medium transition-colors disabled:cursor-wait",
-              value === valor
-                ? "border-ink-900 bg-ink-900 text-white"
-                : "border-ink-900/15 text-ink-700 hover:bg-ink-900/5",
-            )}
-          >
-            {valor}
-          </button>
-        ))}
+        {valores.map((valor) => {
+          const label = LIKERT_LABELS[valor];
+          return (
+            <button
+              key={valor}
+              type="button"
+              role="radio"
+              aria-checked={value === valor}
+              aria-label={label ? `${valor} - ${label}` : String(valor)}
+              title={label}
+              onClick={() => onAnswer(valor)}
+              disabled={isSaving}
+              className={cn(
+                "flex size-10 items-center justify-center rounded-lg border text-sm font-medium transition-colors disabled:cursor-wait",
+                value === valor
+                  ? "border-ink-900 bg-ink-900 text-white"
+                  : "border-ink-900/15 text-ink-700 hover:bg-ink-900/5",
+              )}
+            >
+              {valor}
+            </button>
+          );
+        })}
       </div>
     </div>
   );

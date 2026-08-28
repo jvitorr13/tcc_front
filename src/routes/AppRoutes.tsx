@@ -3,8 +3,12 @@ import { Route, Routes } from "react-router-dom";
 import { LoginPage, RegisterPage } from "@/features/auth";
 import { CreateDiagnosticoPage, DiagnosticoDetalhePage, DiagnosticosListPage } from "@/features/diagnosticos";
 import { CreateEmpresaPage, EditEmpresaPage, EmpresasListPage } from "@/features/empresas";
+import { PlanoAcaoPage } from "@/features/plano-acao";
+import { CreateModeloPage, ModelosListPage } from "@/features/questionario";
 import { CreateUserPage, EditUserPage, UsersListPage } from "@/features/users";
+import { ConfiguracoesPage } from "@/pages/ConfiguracoesPage";
 import { DashboardPage } from "@/pages/DashboardPage";
+import { IndicadoresPage } from "@/pages/IndicadoresPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import { ProtectedRoute } from "@/routes/ProtectedRoute";
 import { PublicRoute } from "@/routes/PublicRoute";
@@ -120,6 +124,24 @@ export function AppRoutes() {
       />
 
       <Route
+        path={ROUTES.questionarioModelos}
+        element={
+          <ProtectedRoute>
+            <ModelosListPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path={ROUTES.questionarioModelosNovo}
+        element={
+          <ProtectedRoute>
+            <CreateModeloPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
         path={ROUTES.diagnosticoDetalhe}
         element={
           <ProtectedRoute>
@@ -128,9 +150,37 @@ export function AppRoutes() {
         }
       />
 
+      <Route
+        path={ROUTES.planoAcao}
+        element={
+          <ProtectedRoute>
+            <PlanoAcaoPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path={ROUTES.indicadores}
+        element={
+          <ProtectedRoute>
+            <IndicadoresPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path={ROUTES.configuracoes}
+        element={
+          <ProtectedRoute>
+            <ConfiguracoesPage />
+          </ProtectedRoute>
+        }
+      />
+
       {/*
-        Próximos módulos (ainda sem tela, só a rota reservada):
-        <Route path={ROUTES.planoAcao} element={<ProtectedRoute><PlanoAcaoPage /></ProtectedRoute>} />
+        Próximos módulos (ainda sem tela nem entrada no menu, só a rota reservada):
+        <Route path={ROUTES.perguntas} element={<ProtectedRoute><PerguntasPage /></ProtectedRoute>} />
+        <Route path={ROUTES.respostas} element={<ProtectedRoute><RespostasPage /></ProtectedRoute>} />
         <Route path={ROUTES.tarefas} element={<ProtectedRoute><TarefasPage /></ProtectedRoute>} />
       */}
 

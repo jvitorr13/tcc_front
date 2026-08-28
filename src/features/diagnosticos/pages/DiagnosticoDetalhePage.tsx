@@ -9,12 +9,14 @@ import { SuccessMessage } from "@/components/feedback/SuccessMessage";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { ProgressBar } from "@/components/ui/ProgressBar";
 import { AppLayout } from "@/layouts/AppLayout";
 import { ROUTES } from "@/constants/routes";
 
 import { useEmpresasQuery } from "@/features/empresas";
 
-import { PerguntaScale } from "@/features/diagnosticos/components/PerguntaScale";
+import { AreaAccordion } from "@/features/diagnosticos/components/AreaAccordion";
+import { LikertLegend } from "@/features/diagnosticos/components/LikertLegend";
 import { ResultadoResumo } from "@/features/diagnosticos/components/ResultadoResumo";
 import { useCalcularResultadoMutation } from "@/features/diagnosticos/hooks/useCalcularResultadoMutation";
 import { useDiagnosticoQuery } from "@/features/diagnosticos/hooks/useDiagnosticoQuery";
@@ -92,6 +94,7 @@ export function DiagnosticoDetalhePage() {
   const calcularResultadoMutation = useCalcularResultadoMutation();
 
   const [respostas, setRespostas] = useState<Map<string, number>>(new Map());
+  const [expandedAreaIds, setExpandedAreaIds] = useState<Set<string>>(new Set());
   const [dirtyIds, setDirtyIds] = useState<Set<string>>(new Set());
   const [isSavingProgresso, setIsSavingProgresso] = useState(false);
   const [progressoMessage, setProgressoMessage] = useState<string | null>(null);
@@ -99,7 +102,8 @@ export function DiagnosticoDetalhePage() {
   const [finalizarError, setFinalizarError] = useState<string | null>(null);
 
   // Semeia o estado local com respostas já salvas antes (ex: reabrindo um
-  // diagnóstico em andamento) — só na primeira vez que as perguntas chegam.
+  // diagnóstico em andamento) e abre todas as áreas — só na primeira vez
+  // que as perguntas chegam.
   const seeded = useRef(false);
   useEffect(() => {
     if (areas && !seeded.current) {
@@ -111,8 +115,18 @@ export function DiagnosticoDetalhePage() {
         }
       }
       setRespostas(initial);
+      setExpandedAreaIds(new Set(areas.map((area) => area.id)));
     }
   }, [areas]);
+
+  function toggleArea(areaId: string) {
+    setExpandedAreaIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(areaId)) next.delete(areaId);
+      else next.add(areaId);
+      return next;
+    });
+  }
 
   const empresa = useMemo(
     () => (empresas ?? []).find((item) => item.id === diagnostico?.empresa_id),
@@ -224,15 +238,24 @@ export function DiagnosticoDetalhePage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <Badge variant={STATUS_VARIANTS[diagnostico.status]}>{STATUS_LABELS[diagnostico.status]}</Badge>
-          {!isConcluido && totalPerguntas > 0 && (
-            <span className="text-sm text-ink-600">
-              Progresso: {respostas.size}/{totalPerguntas} perguntas
-            </span>
-          )}
-        </div>
+        <Badge variant={STATUS_VARIANTS[diagnostico.status]}>{STATUS_LABELS[diagnostico.status]}</Badge>
       </div>
+
+      {!isConcluido && totalPerguntas > 0 && (
+        <div className="mt-4 max-w-md">
+          <div className="flex items-center justify-between text-xs text-ink-600">
+            <span>Progresso</span>
+            <span>
+              {respostas.size} de {totalPerguntas} perguntas
+            </span>
+          </div>
+          <ProgressBar
+            value={(respostas.size / totalPerguntas) * 100}
+            label="Progresso do diagnóstico"
+            className="mt-1.5"
+          />
+        </div>
+      )}
 
       {isConcluido ? (
         <div className="mt-6">
@@ -251,20 +274,17 @@ export function DiagnosticoDetalhePage() {
             <p className="text-sm text-ink-500">Este modelo ainda não tem perguntas cadastradas.</p>
           )}
 
+          {areas && areas.length > 0 && <LikertLegend />}
+
           {areas?.map((area) => (
-            <Card key={area.id} className="p-6">
-              <h2 className="font-display text-lg text-ink-900">{area.nome}</h2>
-              <div className="mt-2 divide-y divide-ink-900/6">
-                {area.perguntas.map((pergunta) => (
-                  <PerguntaScale
-                    key={pergunta.id}
-                    pergunta={pergunta}
-                    value={respostas.get(pergunta.id)}
-                    onAnswer={(valor) => handleAnswer(pergunta.id, valor)}
-                  />
-                ))}
-              </div>
-            </Card>
+            <AreaAccordion
+              key={area.id}
+              area={area}
+              respostas={respostas}
+              onAnswer={handleAnswer}
+              expanded={expandedAreaIds.has(area.id)}
+              onToggle={() => toggleArea(area.id)}
+            />
           ))}
 
           {areas && areas.length > 0 && (
