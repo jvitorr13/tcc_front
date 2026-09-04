@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
+import { ProgressBar } from "@/components/ui/ProgressBar";
 import { formatDecimal } from "@/utils/format";
 
 import type { ResultadoDiagnostico } from "@/features/diagnosticos/types/diagnostico.types";
@@ -7,6 +8,13 @@ import type { ResultadoDiagnostico } from "@/features/diagnosticos/types/diagnos
 export interface ResultadoResumoProps {
   resultado: ResultadoDiagnostico;
 }
+
+/**
+ * Assumido: a média por área usa a mesma escala 1-5 do resto do sistema
+ * (ResultadoPorArea não carrega escala_min/max) — só afeta o comprimento
+ * visual da barra, o número exibido continua vindo direto do back-end.
+ */
+const ESCALA_MAX_ASSUMIDA = 5;
 
 /**
  * Só exibe o que o back-end calculou (média geral, nível de maturidade,
@@ -32,15 +40,18 @@ export function ResultadoResumo({ resultado }: ResultadoResumoProps) {
       </div>
 
       <Card className="p-6">
-        <h2 className="font-display text-lg text-ink-900">Por área</h2>
-        <dl className="mt-3 divide-y divide-ink-900/6">
+        <h2 className="font-display text-lg text-ink-900">Resultado por área</h2>
+        <div className="mt-4 space-y-4">
           {resultado.por_area.map((area) => (
-            <div key={area.area_id} className="flex items-center justify-between py-2.5 text-sm">
-              <dt className="text-ink-700">{area.area_nome}</dt>
-              <dd className="font-medium text-ink-900">{formatDecimal(area.media)}</dd>
+            <div key={area.area_id}>
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-ink-700">{area.area_nome}</span>
+                <span className="font-medium text-ink-900">{formatDecimal(area.media)}</span>
+              </div>
+              <ProgressBar value={(area.media / ESCALA_MAX_ASSUMIDA) * 100} className="mt-1.5" label={area.area_nome} />
             </div>
           ))}
-        </dl>
+        </div>
       </Card>
     </div>
   );

@@ -12,6 +12,8 @@ export interface AreaAccordionProps {
   onAnswer: (perguntaId: string, valor: number) => void;
   expanded: boolean;
   onToggle: () => void;
+  /** Repassado para cada PerguntaScale — liga o destaque de obrigatória sem resposta. */
+  highlightUnanswered?: boolean;
 }
 
 /**
@@ -19,7 +21,7 @@ export interface AreaAccordionProps {
  * diagnóstico tem muitas perguntas espalhadas por várias áreas. O contador
  * "X/Y respondidas" fica visível mesmo com a área fechada.
  */
-export function AreaAccordion({ area, respostas, onAnswer, expanded, onToggle }: AreaAccordionProps) {
+export function AreaAccordion({ area, respostas, onAnswer, expanded, onToggle, highlightUnanswered }: AreaAccordionProps) {
   const respondidas = area.perguntas.filter((pergunta) => respostas.has(pergunta.id)).length;
 
   return (
@@ -47,6 +49,7 @@ export function AreaAccordion({ area, respostas, onAnswer, expanded, onToggle }:
               pergunta={pergunta}
               value={respostas.get(pergunta.id)}
               onAnswer={(valor) => onAnswer(pergunta.id, valor)}
+              highlightUnanswered={highlightUnanswered}
             />
           ))}
         </div>

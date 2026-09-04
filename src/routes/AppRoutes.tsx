@@ -3,11 +3,12 @@ import { Route, Routes } from "react-router-dom";
 import { LoginPage, RegisterPage } from "@/features/auth";
 import { CreateDiagnosticoPage, DiagnosticoDetalhePage, DiagnosticosListPage } from "@/features/diagnosticos";
 import { CreateEmpresaPage, EditEmpresaPage, EmpresasListPage } from "@/features/empresas";
-import { PlanoAcaoPage } from "@/features/plano-acao";
+import { CreatePlanoAcaoPage, PlanoAcaoDetalhePage, PlanosAcaoListPage } from "@/features/plano-acao";
 import { CreateModeloPage, ModelosListPage } from "@/features/questionario";
 import { CreateUserPage, EditUserPage, UsersListPage } from "@/features/users";
 import { ConfiguracoesPage } from "@/pages/ConfiguracoesPage";
 import { DashboardPage } from "@/pages/DashboardPage";
+import { EvolucaoPage } from "@/pages/EvolucaoPage";
 import { IndicadoresPage } from "@/pages/IndicadoresPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import { ProtectedRoute } from "@/routes/ProtectedRoute";
@@ -151,10 +152,28 @@ export function AppRoutes() {
       />
 
       <Route
-        path={ROUTES.planoAcao}
+        path={ROUTES.planosAcao}
         element={
           <ProtectedRoute>
-            <PlanoAcaoPage />
+            <PlanosAcaoListPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path={ROUTES.planosAcaoNovo}
+        element={
+          <ProtectedRoute>
+            <CreatePlanoAcaoPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path={ROUTES.planoAcaoDetalhe}
+        element={
+          <ProtectedRoute>
+            <PlanoAcaoDetalhePage />
           </ProtectedRoute>
         }
       />
@@ -164,6 +183,15 @@ export function AppRoutes() {
         element={
           <ProtectedRoute>
             <IndicadoresPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path={ROUTES.evolucao}
+        element={
+          <ProtectedRoute>
+            <EvolucaoPage />
           </ProtectedRoute>
         }
       />

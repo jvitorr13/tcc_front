@@ -26,8 +26,11 @@ export const ROUTES = {
   // ou o resultado (CONCLUIDO) dependendo do status do diagnóstico.
   diagnosticoDetalhe: "/diagnosticos/:id",
 
-  planoAcao: "/plano-de-acao",
+  planosAcao: "/planos-acao",
+  planosAcaoNovo: "/planos-acao/novo",
+  planoAcaoDetalhe: "/planos-acao/:id",
   indicadores: "/indicadores",
+  evolucao: "/evolucao",
   configuracoes: "/configuracoes",
 
   // Preparado para os próximos módulos do sistema de consultoria — ainda
@@ -56,4 +59,9 @@ export function empresaEditarPath(id: string): string {
  */
 export function diagnosticoDetalhePath(id: string, empresaId: string): string {
   return `/diagnosticos/${id}?empresa=${empresaId}`;
+}
+
+/** Resolve o path real de detalhe de um plano de ação a partir do :id da rota. */
+export function planoAcaoDetalhePath(id: string): string {
+  return `/planos-acao/${id}`;
 }

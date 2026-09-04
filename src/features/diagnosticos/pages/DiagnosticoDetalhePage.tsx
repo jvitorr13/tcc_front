@@ -1,3 +1,4 @@
+import { ArrowRight, Target } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 
@@ -12,6 +13,7 @@ import { Card } from "@/components/ui/Card";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { AppLayout } from "@/layouts/AppLayout";
 import { ROUTES } from "@/constants/routes";
+import { formatDate } from "@/utils/format";
 
 import { useEmpresasQuery } from "@/features/empresas";
 
@@ -100,6 +102,12 @@ export function DiagnosticoDetalhePage() {
   const [progressoMessage, setProgressoMessage] = useState<string | null>(null);
   const [progressoError, setProgressoError] = useState<string | null>(null);
   const [finalizarError, setFinalizarError] = useState<string | null>(null);
+  const [isCheckingFinalizar, setIsCheckingFinalizar] = useState(false);
+  const [confirmingFinalizar, setConfirmingFinalizar] = useState(false);
+  // Liga o destaque "pergunta precisa ser respondida" só depois da primeira
+  // tentativa de finalizar — não faz sentido pintar tudo de vermelho antes
+  // do consultor sequer começar a preencher.
+  const [attemptedFinalize, setAttemptedFinalize] = useState(false);
 
   // Semeia o estado local com respostas já salvas antes (ex: reabrindo um
   // diagnóstico em andamento) e abre todas as áreas — só na primeira vez
@@ -132,6 +140,19 @@ export function DiagnosticoDetalhePage() {
     () => (empresas ?? []).find((item) => item.id === diagnostico?.empresa_id),
     [empresas, diagnostico],
   );
+
+  // Quais áreas têm pergunta obrigatória sem resposta — usado só pra saber
+  // quais reabrir quando o consultor tenta finalizar sem terminar (a
+  // contagem "oficial" de pendências continua vindo do back-end).
+  const areasComPendencia = useMemo(() => {
+    const ids = new Set<string>();
+    for (const area of areas ?? []) {
+      if (area.perguntas.some((pergunta) => pergunta.obrigatoria && !respostas.has(pergunta.id))) {
+        ids.add(area.id);
+      }
+    }
+    return ids;
+  }, [areas, respostas]);
 
   function handleAnswer(perguntaId: string, valor: number) {
     setRespostas((prev) => new Map(prev).set(perguntaId, valor));
@@ -171,23 +192,44 @@ export function DiagnosticoDetalhePage() {
     return true;
   }
 
-  async function handleFinalizar() {
-    if (!id) return;
+  /**
+   * Primeiro clique em "Finalizar diagnóstico": salva o que estiver
+   * pendente, confere as pendências de verdade no back-end e só then decide
+   * entre bloquear (com as perguntas obrigatórias destacadas) ou pedir
+   * confirmação — finalizar em si só acontece em handleConfirmarFinalizar.
+   */
+  async function handleFinalizarClick() {
     setFinalizarError(null);
+    setAttemptedFinalize(true);
+    setIsCheckingFinalizar(true);
 
     if (dirtyIds.size > 0) {
       const saved = await handleSalvarProgresso();
       if (!saved) {
         setFinalizarError("Salve as respostas pendentes antes de finalizar.");
+        setIsCheckingFinalizar(false);
         return;
       }
     }
 
     const { data: freshPendencias } = await refetchPendencias();
+    setIsCheckingFinalizar(false);
+
     if ((freshPendencias?.quantidade ?? 0) > 0) {
-      setFinalizarError("Ainda existem perguntas obrigatórias sem resposta.");
+      setFinalizarError(
+        `Não é possível finalizar: existem ${freshPendencias!.quantidade} pergunta${freshPendencias!.quantidade === 1 ? "" : "s"} obrigatória${freshPendencias!.quantidade === 1 ? "" : "s"} pendente${freshPendencias!.quantidade === 1 ? "" : "s"}.`,
+      );
+      setExpandedAreaIds((prev) => new Set([...prev, ...areasComPendencia]));
       return;
     }
+
+    setConfirmingFinalizar(true);
+  }
+
+  async function handleConfirmarFinalizar() {
+    if (!id) return;
+    setConfirmingFinalizar(false);
+    setFinalizarError(null);
 
     try {
       await finalizarMutation.mutateAsync(id);
@@ -236,6 +278,9 @@ export function DiagnosticoDetalhePage() {
           <p className="mt-1 text-sm text-ink-600">
             Empresa: {empresa ? empresa.nome_fantasia || empresa.razao_social : "—"}
           </p>
+          {isConcluido && (
+            <p className="mt-0.5 text-sm text-ink-600">Concluído em: {formatDate(diagnostico.data_conclusao)}</p>
+          )}
         </div>
 
         <Badge variant={STATUS_VARIANTS[diagnostico.status]}>{STATUS_LABELS[diagnostico.status]}</Badge>
@@ -258,9 +303,32 @@ export function DiagnosticoDetalhePage() {
       )}
 
       {isConcluido ? (
-        <div className="mt-6">
+        <div className="mt-6 space-y-6">
           {isLoadingResultado && <Loading label="Carregando resultado…" />}
           {resultado && <ResultadoResumo resultado={resultado} />}
+
+          {resultado && (
+            <Card className="flex flex-wrap items-center justify-between gap-4 p-6">
+              <div className="flex items-start gap-3">
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-gold-100 text-gold-600">
+                  <Target size={18} />
+                </span>
+                <div>
+                  <p className="text-sm font-medium text-ink-900">Próxima etapa</p>
+                  <p className="mt-0.5 text-sm text-ink-600">
+                    Identifique os pontos que precisam de melhoria e crie ações para acompanhamento da empresa.
+                  </p>
+                </div>
+              </div>
+              <Link
+                to={`${ROUTES.planosAcaoNovo}?diagnostico=${diagnostico.id}&empresa=${diagnostico.empresa_id}`}
+                className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-ink-900 px-4 text-sm font-medium text-white transition-colors hover:bg-ink-800"
+              >
+                Criar plano de ação
+                <ArrowRight size={16} />
+              </Link>
+            </Card>
+          )}
         </div>
       ) : (
         <div className="mt-6 space-y-6">
@@ -284,49 +352,66 @@ export function DiagnosticoDetalhePage() {
               onAnswer={handleAnswer}
               expanded={expandedAreaIds.has(area.id)}
               onToggle={() => toggleArea(area.id)}
+              highlightUnanswered={attemptedFinalize}
             />
           ))}
 
           {areas && areas.length > 0 && (
             <Card className="p-6">
-              <div className="flex flex-wrap items-center justify-between gap-4">
+              {confirmingFinalizar ? (
                 <div>
-                  <p className="text-sm text-ink-700">
-                    {temPendencias
-                      ? `Ainda ${pendencias?.quantidade === 1 ? "existe" : "existem"} ${pendencias?.quantidade} pergunta${pendencias?.quantidade === 1 ? "" : "s"} sem resposta.`
-                      : "Todas as perguntas foram respondidas."}
+                  <p className="text-sm font-medium text-ink-900">Finalizar diagnóstico?</p>
+                  <p className="mt-1 text-sm text-ink-600">
+                    Após a finalização, o diagnóstico será concluído e o resultado poderá ser calculado.
                   </p>
-                  {dirtyIds.size > 0 && (
-                    <p className="mt-1 text-xs text-gold-600">
-                      {dirtyIds.size} resposta{dirtyIds.size === 1 ? "" : "s"} ainda não salva
-                      {dirtyIds.size === 1 ? "" : "s"}.
+                  <div className="mt-4 flex gap-3">
+                    <Button type="button" variant="secondary" onClick={() => setConfirmingFinalizar(false)}>
+                      Cancelar
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={handleConfirmarFinalizar}
+                      isLoading={finalizarMutation.isPending || calcularResultadoMutation.isPending}
+                    >
+                      Finalizar
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm text-ink-700">
+                      {temPendencias
+                        ? `Ainda ${pendencias?.quantidade === 1 ? "existe" : "existem"} ${pendencias?.quantidade} pergunta${pendencias?.quantidade === 1 ? "" : "s"} sem resposta.`
+                        : "Todas as perguntas foram respondidas."}
                     </p>
-                  )}
-                  {progressoMessage && <SuccessMessage className="mt-2">{progressoMessage}</SuccessMessage>}
-                  {progressoError && <ErrorMessage className="mt-2">{progressoError}</ErrorMessage>}
-                  {finalizarError && <ErrorMessage className="mt-2">{finalizarError}</ErrorMessage>}
-                </div>
+                    {dirtyIds.size > 0 && (
+                      <p className="mt-1 text-xs text-gold-600">
+                        {dirtyIds.size} resposta{dirtyIds.size === 1 ? "" : "s"} ainda não salva
+                        {dirtyIds.size === 1 ? "" : "s"}.
+                      </p>
+                    )}
+                    {progressoMessage && <SuccessMessage className="mt-2">{progressoMessage}</SuccessMessage>}
+                    {progressoError && <ErrorMessage className="mt-2">{progressoError}</ErrorMessage>}
+                    {finalizarError && <ErrorMessage className="mt-2">{finalizarError}</ErrorMessage>}
+                  </div>
 
-                <div className="flex gap-3">
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={handleSalvarProgresso}
-                    isLoading={isSavingProgresso}
-                    disabled={dirtyIds.size === 0}
-                  >
-                    Salvar progresso
-                  </Button>
-                  <Button
-                    type="button"
-                    onClick={handleFinalizar}
-                    isLoading={finalizarMutation.isPending || calcularResultadoMutation.isPending}
-                    disabled={temPendencias}
-                  >
-                    Finalizar diagnóstico
-                  </Button>
+                  <div className="flex gap-3">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={handleSalvarProgresso}
+                      isLoading={isSavingProgresso}
+                      disabled={dirtyIds.size === 0}
+                    >
+                      Salvar progresso
+                    </Button>
+                    <Button type="button" onClick={handleFinalizarClick} isLoading={isCheckingFinalizar}>
+                      Finalizar diagnóstico
+                    </Button>
+                  </div>
                 </div>
-              </div>
+              )}
             </Card>
           )}
         </div>
