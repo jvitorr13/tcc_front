@@ -10,12 +10,18 @@ export const ROUTES = {
   notFound: "/404",
 
   dashboard: "/",
+  // Ponto de entrada no menu lateral: lista de empresas -> escolhe uma ->
+  // cai em empresaDashboard (o dashboard em si é por empresa).
+  dashboards: "/dashboards",
+  perfil: "/perfil",
   usuarios: "/usuarios",
   usuariosNovo: "/usuarios/novo",
   usuariosEditar: "/usuarios/:id/editar",
   empresas: "/empresas",
   empresasNovo: "/empresas/novo",
   empresasEditar: "/empresas/:id/editar",
+  empresaDashboard: "/empresas/:id/dashboard",
+  empresaEvolucao: "/empresas/:id/evolucao",
   diagnosticos: "/diagnosticos",
   diagnosticosNovo: "/diagnosticos/novo",
   // Subárea de Diagnósticos, não um módulo próprio no menu lateral — ver
@@ -30,6 +36,8 @@ export const ROUTES = {
   planosAcaoNovo: "/planos-acao/novo",
   planoAcaoDetalhe: "/planos-acao/:id",
   indicadores: "/indicadores",
+  indicadoresNovo: "/indicadores/novo",
+  indicadorDetalhe: "/indicadores/:id",
   evolucao: "/evolucao",
   configuracoes: "/configuracoes",
 
@@ -50,6 +58,16 @@ export function empresaEditarPath(id: string): string {
   return `/empresas/${id}/editar`;
 }
 
+/** Resolve o path real do dashboard de tarefas de uma empresa a partir do :id da rota. */
+export function empresaDashboardPath(id: string): string {
+  return `/empresas/${id}/dashboard`;
+}
+
+/** Resolve o path real da evolução de diagnósticos de uma empresa a partir do :id da rota. */
+export function empresaEvolucaoPath(id: string): string {
+  return `/empresas/${id}/evolucao`;
+}
+
 /**
  * Resolve o path real da tela de detalhe (responder/resultado) de um
  * diagnóstico. Carrega `empresa_id` na própria URL (?empresa=) porque não
@@ -64,4 +82,9 @@ export function diagnosticoDetalhePath(id: string, empresaId: string): string {
 /** Resolve o path real de detalhe de um plano de ação a partir do :id da rota. */
 export function planoAcaoDetalhePath(id: string): string {
   return `/planos-acao/${id}`;
+}
+
+/** Resolve o path real de detalhe de um indicador a partir do :id da rota. */
+export function indicadorDetalhePath(id: string): string {
+  return `/indicadores/${id}`;
 }

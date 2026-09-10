@@ -22,6 +22,7 @@ import { useEmpresasQuery } from "@/features/empresas";
 
 import { PlanosAcaoTable } from "@/features/plano-acao/components/PlanosAcaoTable";
 import { usePlanosAcaoQuery } from "@/features/plano-acao/hooks/usePlanosAcaoQuery";
+import { usePlanosTarefasCount } from "@/features/plano-acao/hooks/usePlanosTarefasCount";
 import type { PlanoAcaoStatus, PlanosAcaoFilters } from "@/features/plano-acao/types/plano-acao.types";
 
 type StatusFilter = "" | PlanoAcaoStatus;
@@ -132,11 +133,15 @@ export function PlanosAcaoListPage() {
   }, [planos, statusFilter, search, empresaNameById]);
 
   const { page, setPage, totalPages, paginatedItems: paginatedPlanos } = usePagination(filteredPlanos);
+  const tarefasCountById = usePlanosTarefasCount(paginatedPlanos.map((plano) => plano.id));
 
   return (
     <AppLayout>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="font-display text-2xl text-ink-900">Planos de Ação</h1>
+        <div>
+          <h1 className="font-display text-2xl text-ink-900">Planos de Ação</h1>
+          <p className="mt-1 text-sm text-ink-600">Acompanhe e gerencie as ações de melhoria das empresas.</p>
+        </div>
         <Link
           to={ROUTES.planosAcaoNovo}
           className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-ink-900 px-4 text-sm font-medium text-white transition-colors hover:bg-ink-800"
@@ -225,7 +230,16 @@ export function PlanosAcaoListPage() {
         )}
 
         {!isLoading && !isError && filteredPlanos.length === 0 && (
-          <p className="py-10 text-center text-sm text-ink-500">Nenhum plano de ação encontrado.</p>
+          <div className="flex flex-col items-center gap-4 py-10 text-center">
+            <p className="text-sm text-ink-500">Nenhum plano de ação encontrado.</p>
+            <Link
+              to={ROUTES.planosAcaoNovo}
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-ink-900 px-4 text-sm font-medium text-white transition-colors hover:bg-ink-800"
+            >
+              <Plus size={15} />
+              Criar primeiro plano
+            </Link>
+          </div>
         )}
 
         {!isLoading && !isError && filteredPlanos.length > 0 && (
@@ -234,6 +248,7 @@ export function PlanosAcaoListPage() {
               planos={paginatedPlanos}
               empresaNameById={empresaNameById}
               diagnosticoNameById={diagnosticoNameById}
+              tarefasCountById={tarefasCountById}
             />
             <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
           </>

@@ -1,4 +1,4 @@
-import { Building2, ClipboardList, Compass, Gauge, Home, Settings, Target, TrendingUp, Users } from "lucide-react";
+import { Building2, ClipboardList, Compass, Home, LayoutDashboard, Settings, Target, TrendingUp, Users } from "lucide-react";
 import { NavLink } from "react-router-dom";
 
 import { ROUTES } from "@/constants/routes";
@@ -8,18 +8,21 @@ const NAV_ITEMS = [
   { to: ROUTES.dashboard, label: "Início", icon: Home, end: true },
   { to: ROUTES.usuarios, label: "Usuários", icon: Users, end: false },
   { to: ROUTES.empresas, label: "Empresas", icon: Building2, end: false },
+  { to: ROUTES.dashboards, label: "Dashboards", icon: LayoutDashboard, end: false },
   { to: ROUTES.diagnosticos, label: "Diagnósticos", icon: ClipboardList, end: false },
   { to: ROUTES.planosAcao, label: "Planos de Ação", icon: Target, end: false },
-  { to: ROUTES.indicadores, label: "Indicadores", icon: Gauge, end: false },
+  // Indicadores: módulo já implementado (features/indicadores), só tirado
+  // do menu por pedido temporário — reativar é só devolver a linha abaixo:
+  // { to: ROUTES.indicadores, label: "Indicadores", icon: Gauge, end: false },
   { to: ROUTES.evolucao, label: "Evolução", icon: TrendingUp, end: false },
   { to: ROUTES.configuracoes, label: "Configurações", icon: Settings, end: false },
 ];
 
 /**
- * Navegação lateral das páginas privadas. Indicadores, Evolução e
- * Configurações têm rota e entrada no menu, mas ainda sem back-end — a
- * página renderiza um placeholder (ver ComingSoon) em vez de 404. Módulos
- * que nem isso têm
+ * Navegação lateral das páginas privadas. Configurações tem rota e entrada
+ * no menu, mas ainda sem back-end — a página renderiza um placeholder (ver
+ * ComingSoon) em vez de 404. Indicadores tem tela e back-end prontos, mas
+ * está fora do menu por ora (ver NAV_ITEMS acima). Módulos que nem tela têm
  * (Perguntas, Respostas, Tarefas como telas avulsas) ficam de fora daqui —
  * rota reservada em ROUTES, sem link (ver comentário em AppRoutes.tsx).
  */

@@ -1,15 +1,16 @@
 import { Route, Routes } from "react-router-dom";
 
 import { LoginPage, RegisterPage } from "@/features/auth";
+import { DashboardsListPage, EmpresaDashboardPage } from "@/features/dashboard";
 import { CreateDiagnosticoPage, DiagnosticoDetalhePage, DiagnosticosListPage } from "@/features/diagnosticos";
 import { CreateEmpresaPage, EditEmpresaPage, EmpresasListPage } from "@/features/empresas";
+import { EmpresaEvolucaoPage, EvolucoesListPage } from "@/features/evolucao";
+import { CreateIndicadorPage, IndicadorDetalhePage, IndicadoresListPage } from "@/features/indicadores";
 import { CreatePlanoAcaoPage, PlanoAcaoDetalhePage, PlanosAcaoListPage } from "@/features/plano-acao";
 import { CreateModeloPage, ModelosListPage } from "@/features/questionario";
-import { CreateUserPage, EditUserPage, UsersListPage } from "@/features/users";
+import { CreateUserPage, EditUserPage, ProfilePage, UsersListPage } from "@/features/users";
 import { ConfiguracoesPage } from "@/pages/ConfiguracoesPage";
 import { DashboardPage } from "@/pages/DashboardPage";
-import { EvolucaoPage } from "@/pages/EvolucaoPage";
-import { IndicadoresPage } from "@/pages/IndicadoresPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import { ProtectedRoute } from "@/routes/ProtectedRoute";
 import { PublicRoute } from "@/routes/PublicRoute";
@@ -48,6 +49,24 @@ export function AppRoutes() {
         element={
           <ProtectedRoute>
             <DashboardPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path={ROUTES.dashboards}
+        element={
+          <ProtectedRoute>
+            <DashboardsListPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path={ROUTES.perfil}
+        element={
+          <ProtectedRoute>
+            <ProfilePage />
           </ProtectedRoute>
         }
       />
@@ -102,6 +121,15 @@ export function AppRoutes() {
         element={
           <ProtectedRoute>
             <EditEmpresaPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path={ROUTES.empresaDashboard}
+        element={
+          <ProtectedRoute>
+            <EmpresaDashboardPage />
           </ProtectedRoute>
         }
       />
@@ -182,7 +210,25 @@ export function AppRoutes() {
         path={ROUTES.indicadores}
         element={
           <ProtectedRoute>
-            <IndicadoresPage />
+            <IndicadoresListPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path={ROUTES.indicadoresNovo}
+        element={
+          <ProtectedRoute>
+            <CreateIndicadorPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path={ROUTES.indicadorDetalhe}
+        element={
+          <ProtectedRoute>
+            <IndicadorDetalhePage />
           </ProtectedRoute>
         }
       />
@@ -191,7 +237,16 @@ export function AppRoutes() {
         path={ROUTES.evolucao}
         element={
           <ProtectedRoute>
-            <EvolucaoPage />
+            <EvolucoesListPage />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path={ROUTES.empresaEvolucao}
+        element={
+          <ProtectedRoute>
+            <EmpresaEvolucaoPage />
           </ProtectedRoute>
         }
       />

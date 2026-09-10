@@ -1,29 +1,34 @@
-import { Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Pencil, Plus, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 
 import { getErrorMessage } from "@/lib/get-error-message";
 
 import { ErrorMessage } from "@/components/feedback/ErrorMessage";
 import { Loading } from "@/components/feedback/Loading";
+import { SuccessMessage } from "@/components/feedback/SuccessMessage";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { Modal } from "@/components/ui/Modal";
 import { AppLayout } from "@/layouts/AppLayout";
-import { ROUTES } from "@/constants/routes";
+import { ROUTES, diagnosticoDetalhePath } from "@/constants/routes";
 import { formatDate } from "@/utils/format";
 
 import { useDiagnosticosQuery } from "@/features/diagnosticos";
 import { useEmpresasQuery } from "@/features/empresas";
 
 import { CreateTarefaForm } from "@/features/plano-acao/components/CreateTarefaForm";
+import { EditPlanoAcaoForm } from "@/features/plano-acao/components/EditPlanoAcaoForm";
 import { TarefaCard } from "@/features/plano-acao/components/TarefaCard";
 import { useCreateTarefaMutation } from "@/features/plano-acao/hooks/useCreateTarefaMutation";
 import { useDeletePlanoAcaoMutation } from "@/features/plano-acao/hooks/useDeletePlanoAcaoMutation";
 import { useDeleteTarefaMutation } from "@/features/plano-acao/hooks/useDeleteTarefaMutation";
 import { usePlanoAcaoQuery } from "@/features/plano-acao/hooks/usePlanoAcaoQuery";
+import { useUpdatePlanoAcaoMutation } from "@/features/plano-acao/hooks/useUpdatePlanoAcaoMutation";
 import { useUpdateTarefaMutation } from "@/features/plano-acao/hooks/useUpdateTarefaMutation";
 import type { CreateTarefaFormData } from "@/features/plano-acao/schemas/create-tarefa.schema";
+import type { UpdatePlanoAcaoFormData } from "@/features/plano-acao/schemas/update-plano-acao.schema";
 import type { PlanoAcaoStatus, UpdateTarefaInput } from "@/features/plano-acao/types/plano-acao.types";
 
 const STATUS_LABELS: Record<PlanoAcaoStatus, string> = {
@@ -38,6 +43,10 @@ const STATUS_VARIANTS: Record<PlanoAcaoStatus, "neutral" | "gold" | "success"> =
   CONCLUIDO: "success",
 };
 
+interface PlanoAcaoDetalheLocationState {
+  successMessage?: string;
+}
+
 /**
  * Detalhe de um plano de ação: dados do plano (sem campo de status editável
  * — vem sempre do back-end, derivado das tarefas) + a lista de tarefas, com
@@ -46,6 +55,7 @@ const STATUS_VARIANTS: Record<PlanoAcaoStatus, "neutral" | "gold" | "success"> =
 export function PlanoAcaoDetalhePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const { data: plano, isLoading, isError, error } = usePlanoAcaoQuery(id);
   const { data: empresas } = useEmpresasQuery();
@@ -61,17 +71,23 @@ export function PlanoAcaoDetalhePage() {
   );
 
   const deletePlanoMutation = useDeletePlanoAcaoMutation();
+  const updatePlanoMutation = useUpdatePlanoAcaoMutation(id ?? "");
   const createTarefaMutation = useCreateTarefaMutation(id ?? "");
   const updateTarefaMutation = useUpdateTarefaMutation(id ?? "");
   const deleteTarefaMutation = useDeleteTarefaMutation(id ?? "");
 
   const [confirmingDeletePlano, setConfirmingDeletePlano] = useState(false);
   const [deletePlanoError, setDeletePlanoError] = useState<string | null>(null);
+  const [isEditingPlano, setIsEditingPlano] = useState(false);
+  const [editPlanoError, setEditPlanoError] = useState<string | null>(null);
   const [isAddingTarefa, setIsAddingTarefa] = useState(false);
   const [createTarefaError, setCreateTarefaError] = useState<string | null>(null);
   const [updatingTarefaId, setUpdatingTarefaId] = useState<string | null>(null);
   const [deletingTarefaId, setDeletingTarefaId] = useState<string | null>(null);
   const [tarefaActionError, setTarefaActionError] = useState<string | null>(null);
+  const [actionSuccess, setActionSuccess] = useState<string | null>(
+    () => (location.state as PlanoAcaoDetalheLocationState | null)?.successMessage ?? null,
+  );
 
   async function handleDeletePlano() {
     if (!id) return;
@@ -85,8 +101,21 @@ export function PlanoAcaoDetalhePage() {
     }
   }
 
+  async function handleUpdatePlano(data: UpdatePlanoAcaoFormData) {
+    setEditPlanoError(null);
+    setActionSuccess(null);
+    try {
+      await updatePlanoMutation.mutateAsync({ titulo: data.titulo, descricao: data.descricao || undefined });
+      setIsEditingPlano(false);
+      setActionSuccess("Plano atualizado com sucesso.");
+    } catch (err) {
+      setEditPlanoError(getErrorMessage(err, "Não foi possível atualizar o plano de ação."));
+    }
+  }
+
   async function handleCreateTarefa(data: CreateTarefaFormData) {
     setCreateTarefaError(null);
+    setActionSuccess(null);
     try {
       await createTarefaMutation.mutateAsync({
         titulo: data.titulo,
@@ -96,6 +125,7 @@ export function PlanoAcaoDetalhePage() {
         prioridade: data.prioridade,
       });
       setIsAddingTarefa(false);
+      setActionSuccess("Tarefa criada com sucesso.");
     } catch (err) {
       setCreateTarefaError(getErrorMessage(err, "Não foi possível criar a tarefa."));
     }
@@ -103,9 +133,11 @@ export function PlanoAcaoDetalhePage() {
 
   async function handleUpdateTarefa(tarefaId: string, input: UpdateTarefaInput) {
     setTarefaActionError(null);
+    setActionSuccess(null);
     setUpdatingTarefaId(tarefaId);
     try {
       await updateTarefaMutation.mutateAsync({ tarefaId, input });
+      setActionSuccess("Tarefa atualizada com sucesso.");
     } catch (err) {
       const message = getErrorMessage(err, "Não foi possível atualizar a tarefa.");
       setTarefaActionError(message);
@@ -117,9 +149,11 @@ export function PlanoAcaoDetalhePage() {
 
   async function handleDeleteTarefa(tarefaId: string) {
     setTarefaActionError(null);
+    setActionSuccess(null);
     setDeletingTarefaId(tarefaId);
     try {
       await deleteTarefaMutation.mutateAsync(tarefaId);
+      setActionSuccess("Tarefa excluída com sucesso.");
     } catch (err) {
       setTarefaActionError(getErrorMessage(err, "Não foi possível excluir a tarefa."));
     } finally {
@@ -148,28 +182,76 @@ export function PlanoAcaoDetalhePage() {
 
   return (
     <AppLayout>
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <Link
+        to={ROUTES.planosAcao}
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-ink-600 transition-colors hover:text-ink-900"
+      >
+        <ArrowLeft size={15} />
+        Voltar para Planos de Ação
+      </Link>
+
+      <div className="mt-4 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="font-display text-2xl text-ink-900">{plano.titulo}</h1>
           <p className="mt-1 text-sm text-ink-600">
             {empresa ? empresa.nome_fantasia || empresa.razao_social : "—"}
-            {diagnostico ? ` • Diagnóstico ${diagnostico.nome}` : ""}
+            {diagnostico && (
+              <>
+                {" • Diagnóstico "}
+                <Link
+                  to={diagnosticoDetalhePath(diagnostico.id, plano.empresa_id)}
+                  className="font-medium text-ink-700 underline decoration-ink-900/20 underline-offset-2 hover:text-ink-900"
+                >
+                  {diagnostico.nome}
+                </Link>
+              </>
+            )}
           </p>
           <p className="mt-1 text-sm text-ink-600">Criado em: {formatDate(plano.created_at)}</p>
         </div>
 
         <div className="flex items-center gap-3">
           <Badge variant={STATUS_VARIANTS[plano.status]}>{STATUS_LABELS[plano.status]}</Badge>
-          {!confirmingDeletePlano && (
-            <Button type="button" variant="ghost" size="sm" onClick={() => setConfirmingDeletePlano(true)}>
-              <Trash2 size={14} />
-              Excluir plano
-            </Button>
+          {!isEditingPlano && !confirmingDeletePlano && (
+            <>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setEditPlanoError(null);
+                  setIsEditingPlano(true);
+                }}
+              >
+                <Pencil size={14} />
+                Editar plano
+              </Button>
+              <Button type="button" variant="ghost" size="sm" onClick={() => setConfirmingDeletePlano(true)}>
+                <Trash2 size={14} />
+                Excluir plano
+              </Button>
+            </>
           )}
         </div>
       </div>
 
+      {actionSuccess && <SuccessMessage className="mt-3">{actionSuccess}</SuccessMessage>}
       {deletePlanoError && <ErrorMessage className="mt-3">{deletePlanoError}</ErrorMessage>}
+
+      {isEditingPlano && (
+        <Card className="mt-4 p-4">
+          <EditPlanoAcaoForm
+            defaultValues={{ titulo: plano.titulo, descricao: plano.descricao }}
+            onSubmit={handleUpdatePlano}
+            onCancel={() => {
+              setIsEditingPlano(false);
+              setEditPlanoError(null);
+            }}
+            isSubmitting={updatePlanoMutation.isPending}
+            submitError={editPlanoError}
+          />
+        </Card>
+      )}
 
       {confirmingDeletePlano && (
         <Card className="mt-4 p-4">
@@ -203,27 +285,30 @@ export function PlanoAcaoDetalhePage() {
       <Card className="mt-6 p-6">
         <div className="flex items-center justify-between gap-3">
           <h2 className="font-display text-lg text-ink-900">Tarefas</h2>
-          {!isAddingTarefa && (
-            <Button type="button" size="sm" onClick={() => setIsAddingTarefa(true)}>
-              <Plus size={15} />
-              Nova Tarefa
-            </Button>
-          )}
+          <Button type="button" size="sm" onClick={() => setIsAddingTarefa(true)}>
+            <Plus size={15} />
+            Nova Tarefa
+          </Button>
         </div>
 
-        {isAddingTarefa && (
-          <div className="mt-4">
-            <CreateTarefaForm
-              onSubmit={handleCreateTarefa}
-              onCancel={() => {
-                setIsAddingTarefa(false);
-                setCreateTarefaError(null);
-              }}
-              isSubmitting={createTarefaMutation.isPending}
-              submitError={createTarefaError}
-            />
-          </div>
-        )}
+        <Modal
+          open={isAddingTarefa}
+          onClose={() => {
+            setIsAddingTarefa(false);
+            setCreateTarefaError(null);
+          }}
+          title="Nova Tarefa"
+        >
+          <CreateTarefaForm
+            onSubmit={handleCreateTarefa}
+            onCancel={() => {
+              setIsAddingTarefa(false);
+              setCreateTarefaError(null);
+            }}
+            isSubmitting={createTarefaMutation.isPending}
+            submitError={createTarefaError}
+          />
+        </Modal>
 
         {tarefaActionError && <ErrorMessage className="mt-4">{tarefaActionError}</ErrorMessage>}
 

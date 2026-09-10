@@ -28,7 +28,7 @@ export function CreateTarefaForm({ onSubmit, onCancel, isSubmitting, submitError
   });
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4 rounded-lg border border-ink-900/10 p-4">
+    <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
       <FormField label="Título" placeholder="Ex: Implantar controle financeiro" error={errors.titulo?.message} {...register("titulo")} />
 
       <TextareaField label="Descrição" placeholder="Detalhes da tarefa (opcional)" error={errors.descricao?.message} {...register("descricao")} />
@@ -49,11 +49,18 @@ export function CreateTarefaForm({ onSubmit, onCancel, isSubmitting, submitError
         </div>
       )}
 
-      <div className="flex gap-3">
-        <Button type="button" variant="secondary" size="sm" onClick={onCancel} disabled={isSubmitting}>
+      <div className="flex gap-3 pt-1">
+        <Button
+          type="button"
+          variant="secondary"
+          size="lg"
+          className="flex-1"
+          onClick={onCancel}
+          disabled={isSubmitting}
+        >
           Cancelar
         </Button>
-        <Button type="submit" size="sm" isLoading={isSubmitting}>
+        <Button type="submit" size="lg" className="flex-1" isLoading={isSubmitting}>
           Adicionar tarefa
         </Button>
       </div>

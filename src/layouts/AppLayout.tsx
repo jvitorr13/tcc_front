@@ -1,8 +1,10 @@
 import { LogOut } from "lucide-react";
 import type { ReactNode } from "react";
+import { Link } from "react-router-dom";
 
 import { Sidebar } from "@/components/layout/Sidebar";
 import { useAuth } from "@/hooks/useAuth";
+import { ROUTES } from "@/constants/routes";
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -29,10 +31,14 @@ export function AppLayout({ children }: AppLayoutProps) {
 
           <div className="ml-auto flex items-center gap-4">
             {user && (
-              <div className="text-right leading-tight">
+              <Link
+                to={ROUTES.perfil}
+                className="rounded-lg px-2 py-1 text-right leading-tight transition-colors hover:bg-ink-900/5"
+                title="Meu perfil"
+              >
                 <p className="text-sm font-medium text-ink-900">{user.nome}</p>
                 <p className="text-xs text-ink-500">{user.tipo_usuario}</p>
-              </div>
+              </Link>
             )}
             <button
               onClick={logout}

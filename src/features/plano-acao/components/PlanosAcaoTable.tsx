@@ -11,6 +11,7 @@ export interface PlanosAcaoTableProps {
   planos: PlanoAcao[];
   empresaNameById: Map<string, string>;
   diagnosticoNameById: Map<string, string>;
+  tarefasCountById: Map<string, number>;
 }
 
 const STATUS_LABELS: Record<PlanoAcaoStatus, string> = {
@@ -26,12 +27,11 @@ const STATUS_VARIANTS: Record<PlanoAcaoStatus, "neutral" | "gold" | "success"> =
 };
 
 /**
- * A quantidade de tarefas não aparece aqui de propósito: GET /planos-acao
- * devolve só o PlanoAcao (sem a lista de tarefas) — só GET /planos-acao/:id
- * traz `tarefas`. Buscar isso por plano na listagem seria N+1; a contagem
- * fica só na tela de detalhe.
+ * A quantidade de tarefas vem de GET /planos-acao/:id/tarefas por plano
+ * (endpoint já existente) — ver usePlanosTarefasCount, chamado só para os
+ * planos da página atual. GET /planos-acao (lista) não traz `tarefas`.
  */
-export function PlanosAcaoTable({ planos, empresaNameById, diagnosticoNameById }: PlanosAcaoTableProps) {
+export function PlanosAcaoTable({ planos, empresaNameById, diagnosticoNameById, tarefasCountById }: PlanosAcaoTableProps) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-left text-sm">
@@ -40,6 +40,7 @@ export function PlanosAcaoTable({ planos, empresaNameById, diagnosticoNameById }
             <th className="py-3 pr-4 font-medium">Plano</th>
             <th className="py-3 pr-4 font-medium">Empresa</th>
             <th className="py-3 pr-4 font-medium">Diagnóstico</th>
+            <th className="py-3 pr-4 font-medium">Tarefas</th>
             <th className="py-3 pr-4 font-medium">Status</th>
             <th className="py-3 pr-4 font-medium">Criado em</th>
             <th className="py-3 pr-0" />
@@ -51,6 +52,7 @@ export function PlanosAcaoTable({ planos, empresaNameById, diagnosticoNameById }
               <td className="py-3 pr-4 font-medium text-ink-900">{plano.titulo}</td>
               <td className="py-3 pr-4 text-ink-600">{empresaNameById.get(plano.empresa_id) ?? "—"}</td>
               <td className="py-3 pr-4 text-ink-600">{diagnosticoNameById.get(plano.diagnostico_id) ?? "—"}</td>
+              <td className="py-3 pr-4 text-ink-600">{tarefasCountById.get(plano.id) ?? "—"}</td>
               <td className="py-3 pr-4">
                 <Badge variant={STATUS_VARIANTS[plano.status]}>{STATUS_LABELS[plano.status]}</Badge>
               </td>
