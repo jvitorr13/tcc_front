@@ -5,7 +5,8 @@ type Listener = () => void;
  * Barramento de eventos minúsculo, só para o caso de "sessão expirou".
  *
  * Por quê isso existe: o interceptor do Axios (lib/api-client.ts) precisa
- * avisar o resto do app quando o refresh token falha, mas o api-client não
+ * avisar o resto do app quando alguma chamada autenticada volta 401 (JWT
+ * expirado ou inválido — não existe refresh token), mas o api-client não
  * pode importar o authStore diretamente (o authStore usa o authService, que
  * usa o api-client → import circular). Publicar um evento aqui resolve isso:
  * o AuthProvider se inscreve uma vez e decide o que fazer (limpar estado,

@@ -15,10 +15,16 @@ interface AuthProviderProps {
 /**
  * Orquestra o ciclo de vida da sessão:
  *  1. Ao montar, se existe um token salvo, tenta buscar o usuário atual
- *     (GET /auth/me) para restaurar a sessão sem exigir novo login.
- *  2. Expõe login()/logout() que atualizam o authStore (Zustand).
+ *     (GET /auth/me) para restaurar a sessão sem exigir novo login. Se der
+ *     401 (token expirado/inválido), limpa tudo silenciosamente — sem
+ *     mostrar erro, é o comportamento esperado, não uma falha.
+ *  2. Expõe login()/logout() que atualizam o authStore (Zustand). login()
+ *     retorna o AuthUser pra quem chamou decidir a rota inicial por
+ *     tipo_usuario (ver lib/get-initial-route.ts).
  *  3. Escuta o evento "session-expired" emitido pelo interceptor do Axios
- *     (lib/api-client.ts) quando o refresh token falha, e desloga o usuário.
+ *     (lib/api-client.ts) quando QUALQUER chamada autenticada (fora as de
+ *     /auth/*) volta 401 no meio do uso — o JWT tem validade de 24h e não
+ *     tem renovação automática, então isso é esperado acontecer.
  *
  * Deve envolver toda a árvore de rotas em main.tsx/App, acima do
  * RouterProvider, para que ProtectedRoute/PublicRoute consigam ler o
@@ -55,8 +61,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const login = useCallback(
     async (credentials: LoginCredentials) => {
-      const { accessToken, refreshToken, user: loggedUser } = await authService.login(credentials);
-      setSession(loggedUser, accessToken, refreshToken);
+      const { accessToken, user: loggedUser } = await authService.login(credentials);
+      setSession(loggedUser, accessToken);
+      return loggedUser;
     },
     [setSession],
   );

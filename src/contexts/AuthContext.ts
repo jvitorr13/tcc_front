@@ -8,7 +8,8 @@ export interface AuthContextValue {
   status: AuthStatus;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (credentials: LoginCredentials) => Promise<void>;
+  /** Retorna o usuário logado — quem chama decide a rota inicial por tipo_usuario (ver lib/get-initial-route.ts). */
+  login: (credentials: LoginCredentials) => Promise<AuthUser>;
   logout: () => void;
 }
 

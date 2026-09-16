@@ -1,6 +1,7 @@
 export { DiagnosticosListPage } from "@/features/diagnosticos/pages/DiagnosticosListPage";
 export { CreateDiagnosticoPage } from "@/features/diagnosticos/pages/CreateDiagnosticoPage";
 export { DiagnosticoDetalhePage } from "@/features/diagnosticos/pages/DiagnosticoDetalhePage";
+export { MeuDiagnosticoPage } from "@/features/diagnosticos/pages/MeuDiagnosticoPage";
 
 export { DiagnosticosTable } from "@/features/diagnosticos/components/DiagnosticosTable";
 export { AreaAccordion } from "@/features/diagnosticos/components/AreaAccordion";

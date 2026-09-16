@@ -8,10 +8,17 @@ import type { Pergunta } from "@/features/diagnosticos/types/diagnostico.types";
 export interface PerguntaScaleProps {
   pergunta: Pergunta;
   value?: number;
-  onAnswer: (valor: number) => void;
+  onAnswer?: (valor: number) => void;
   isSaving?: boolean;
   /** Liga o destaque "esta pergunta precisa ser respondida" quando obrigatória e sem resposta. */
   highlightUnanswered?: boolean;
+  /**
+   * Modo consulta (CONSULTOR vendo o diagnóstico de uma empresa): botões
+   * mostram a resposta já marcada, mas ficam desabilitados e sem onClick —
+   * o clique não existe no código nesse modo, não é só um disabled visual
+   * torcendo pra ninguém tentar. Só quem responde (EMPRESA) usa readOnly=false.
+   */
+  readOnly?: boolean;
 }
 
 /**
@@ -19,8 +26,10 @@ export interface PerguntaScaleProps {
  * necessariamente 1-5). Clicar num valor já dispara onAnswer — quem decide
  * salvar (POST /respostas) e atualizar o estado é a página; este
  * componente só sabe desenhar a escala e avisar qual valor foi clicado.
+ * Único componente pras duas telas (responder e consultar) — a diferença é
+ * só a prop `readOnly`, evita manter duas versões da mesma UI.
  */
-export function PerguntaScale({ pergunta, value, onAnswer, isSaving, highlightUnanswered }: PerguntaScaleProps) {
+export function PerguntaScale({ pergunta, value, onAnswer, isSaving, highlightUnanswered, readOnly }: PerguntaScaleProps) {
   const valores = Array.from(
     { length: pergunta.escala_max - pergunta.escala_min + 1 },
     (_, index) => pergunta.escala_min + index,
@@ -57,13 +66,15 @@ export function PerguntaScale({ pergunta, value, onAnswer, isSaving, highlightUn
               aria-checked={value === valor}
               aria-label={label ? `${valor} - ${label}` : String(valor)}
               title={label}
-              onClick={() => onAnswer(valor)}
-              disabled={isSaving}
+              onClick={readOnly ? undefined : () => onAnswer?.(valor)}
+              disabled={readOnly || isSaving}
               className={cn(
-                "flex size-10 items-center justify-center rounded-lg border text-sm font-medium transition-colors disabled:cursor-wait",
+                "flex size-10 items-center justify-center rounded-lg border text-sm font-medium transition-colors",
+                readOnly ? "disabled:cursor-default" : "disabled:cursor-wait",
                 value === valor
                   ? "border-ink-900 bg-ink-900 text-white"
-                  : "border-ink-900/15 text-ink-700 hover:bg-ink-900/5",
+                  : "border-ink-900/15 text-ink-700",
+                !readOnly && value !== valor && "hover:bg-ink-900/5",
               )}
             >
               {valor}

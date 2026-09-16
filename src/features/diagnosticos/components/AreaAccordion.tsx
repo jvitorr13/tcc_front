@@ -9,11 +9,13 @@ import type { AreaComPerguntas } from "@/features/diagnosticos/types/diagnostico
 export interface AreaAccordionProps {
   area: AreaComPerguntas;
   respostas: Map<string, number>;
-  onAnswer: (perguntaId: string, valor: number) => void;
+  onAnswer?: (perguntaId: string, valor: number) => void;
   expanded: boolean;
   onToggle: () => void;
   /** Repassado para cada PerguntaScale — liga o destaque de obrigatória sem resposta. */
   highlightUnanswered?: boolean;
+  /** Repassado para cada PerguntaScale — ver PerguntaScale.readOnly. */
+  readOnly?: boolean;
 }
 
 /**
@@ -21,7 +23,15 @@ export interface AreaAccordionProps {
  * diagnóstico tem muitas perguntas espalhadas por várias áreas. O contador
  * "X/Y respondidas" fica visível mesmo com a área fechada.
  */
-export function AreaAccordion({ area, respostas, onAnswer, expanded, onToggle, highlightUnanswered }: AreaAccordionProps) {
+export function AreaAccordion({
+  area,
+  respostas,
+  onAnswer,
+  expanded,
+  onToggle,
+  highlightUnanswered,
+  readOnly,
+}: AreaAccordionProps) {
   const respondidas = area.perguntas.filter((pergunta) => respostas.has(pergunta.id)).length;
 
   return (
@@ -48,8 +58,9 @@ export function AreaAccordion({ area, respostas, onAnswer, expanded, onToggle, h
               key={pergunta.id}
               pergunta={pergunta}
               value={respostas.get(pergunta.id)}
-              onAnswer={(valor) => onAnswer(pergunta.id, valor)}
+              onAnswer={readOnly ? undefined : (valor) => onAnswer?.(pergunta.id, valor)}
               highlightUnanswered={highlightUnanswered}
+              readOnly={readOnly}
             />
           ))}
         </div>

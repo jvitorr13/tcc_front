@@ -5,5 +5,4 @@
  */
 export const STORAGE_KEYS = {
   accessToken: "@consultoria:access_token",
-  refreshToken: "@consultoria:refresh_token",
 } as const;

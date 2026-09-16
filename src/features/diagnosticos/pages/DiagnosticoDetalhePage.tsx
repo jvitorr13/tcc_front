@@ -12,10 +12,12 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { ProgressBar } from "@/components/ui/ProgressBar";
 import { AppLayout } from "@/layouts/AppLayout";
+import { useAuth } from "@/hooks/useAuth";
 import { ROUTES } from "@/constants/routes";
 import { formatDate } from "@/utils/format";
 
 import { useEmpresasQuery } from "@/features/empresas";
+import { useModelosQuery } from "@/features/questionario";
 
 import { AreaAccordion } from "@/features/diagnosticos/components/AreaAccordion";
 import { LikertLegend } from "@/features/diagnosticos/components/LikertLegend";
@@ -54,6 +56,13 @@ export function DiagnosticoDetalhePage() {
   const [searchParams] = useSearchParams();
   const empresaId = searchParams.get("empresa") ?? undefined;
 
+  // CONSULTOR só consulta/gerencia (vê progresso e resultado); quem
+  // responde as perguntas e finaliza é a EMPRESA. Não é só um disabled
+  // visual — handleAnswer também recusa a chamada (ver abaixo), então o
+  // POST /respostas simplesmente não acontece nesse caminho de código.
+  const { user } = useAuth();
+  const isConsultor = user?.tipo_usuario === "CONSULTOR";
+
   const {
     data: diagnostico,
     isLoading: isLoadingDiagnostico,
@@ -62,6 +71,7 @@ export function DiagnosticoDetalhePage() {
     refetch: refetchDiagnostico,
   } = useDiagnosticoQuery(id, empresaId);
   const { data: empresas } = useEmpresasQuery();
+  const { data: modelos } = useModelosQuery();
 
   const iniciarMutation = useIniciarDiagnosticoMutation();
   const [iniciando, setIniciando] = useState(false);
@@ -140,6 +150,10 @@ export function DiagnosticoDetalhePage() {
     () => (empresas ?? []).find((item) => item.id === diagnostico?.empresa_id),
     [empresas, diagnostico],
   );
+  const modelo = useMemo(
+    () => (modelos ?? []).find((item) => item.id === diagnostico?.modelo_id),
+    [modelos, diagnostico],
+  );
 
   // Quais áreas têm pergunta obrigatória sem resposta — usado só pra saber
   // quais reabrir quando o consultor tenta finalizar sem terminar (a
@@ -154,10 +168,37 @@ export function DiagnosticoDetalhePage() {
     return ids;
   }, [areas, respostas]);
 
+  /**
+   * Cada clique já salva na hora (POST /respostas imediato) — não espera o
+   * usuário clicar em "Salvar progresso". `dirtyIds` continua existindo só
+   * pra marcar o que falhou e precisa ser reenviado; no caminho feliz nunca
+   * chega a ficar marcado, então "Salvar progresso" fica disabled (nada
+   * pendente) exatamente como antes.
+   */
   function handleAnswer(perguntaId: string, valor: number) {
+    if (isConsultor) return;
+
     setRespostas((prev) => new Map(prev).set(perguntaId, valor));
-    setDirtyIds((prev) => new Set(prev).add(perguntaId));
     setProgressoMessage(null);
+    setProgressoError(null);
+    setDirtyIds((prev) => new Set(prev).add(perguntaId));
+
+    responderMutation.mutate(
+      { pergunta_id: perguntaId, valor },
+      {
+        onSuccess: () => {
+          setDirtyIds((prev) => {
+            const next = new Set(prev);
+            next.delete(perguntaId);
+            return next;
+          });
+          refetchPendencias();
+        },
+        onError: (err) => {
+          setProgressoError(getErrorMessage(err, "Não foi possível salvar a resposta. Tente novamente."));
+        },
+      },
+    );
   }
 
   async function handleSalvarProgresso(): Promise<boolean> {
@@ -278,6 +319,7 @@ export function DiagnosticoDetalhePage() {
           <p className="mt-1 text-sm text-ink-600">
             Empresa: {empresa ? empresa.nome_fantasia || empresa.razao_social : "—"}
           </p>
+          {modelo && <p className="mt-0.5 text-sm text-ink-600">Modelo: {modelo.nome}</p>}
           {isConcluido && (
             <p className="mt-0.5 text-sm text-ink-600">Concluído em: {formatDate(diagnostico.data_conclusao)}</p>
           )}
@@ -307,7 +349,7 @@ export function DiagnosticoDetalhePage() {
           {isLoadingResultado && <Loading label="Carregando resultado…" />}
           {resultado && <ResultadoResumo resultado={resultado} />}
 
-          {resultado && (
+          {resultado && isConsultor && (
             <Card className="flex flex-wrap items-center justify-between gap-4 p-6">
               <div className="flex items-start gap-3">
                 <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-gold-100 text-gold-600">
@@ -353,10 +395,21 @@ export function DiagnosticoDetalhePage() {
               expanded={expandedAreaIds.has(area.id)}
               onToggle={() => toggleArea(area.id)}
               highlightUnanswered={attemptedFinalize}
+              readOnly={isConsultor}
             />
           ))}
 
-          {areas && areas.length > 0 && (
+          {areas && areas.length > 0 && isConsultor && (
+            <Card className="p-6">
+              <p className="text-sm text-ink-700">
+                {totalPerguntas > 0
+                  ? `${respostas.size} de ${totalPerguntas} perguntas respondidas pela empresa.`
+                  : "Aguardando a empresa responder."}
+              </p>
+            </Card>
+          )}
+
+          {areas && areas.length > 0 && !isConsultor && (
             <Card className="p-6">
               {confirmingFinalizar ? (
                 <div>

@@ -24,6 +24,10 @@ export const ROUTES = {
   empresaEvolucao: "/empresas/:id/evolucao",
   diagnosticos: "/diagnosticos",
   diagnosticosNovo: "/diagnosticos/novo",
+  // Entrada de menu do perfil EMPRESA: resolve sozinho qual diagnóstico
+  // mostrar (empresa_id sempre de user.empresa_id) e redireciona pra
+  // diagnosticoDetalhe — ver MeuDiagnosticoPage.
+  meuDiagnostico: "/meu-diagnostico",
   // Subárea de Diagnósticos, não um módulo próprio no menu lateral — ver
   // Sidebar.tsx e o botão "Modelos de diagnóstico" em DiagnosticosListPage.
   questionarioModelos: "/diagnosticos/modelos",

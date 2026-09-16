@@ -1,7 +1,9 @@
+import { isAxiosError } from "axios";
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { getErrorMessage } from "@/lib/get-error-message";
+import { getInitialRoute } from "@/lib/get-initial-route";
 
 import { SuccessMessage } from "@/components/feedback/SuccessMessage";
 import { AuthLayout } from "@/layouts/AuthLayout";
@@ -10,6 +12,8 @@ import { ROUTES } from "@/constants/routes";
 
 import { LoginForm } from "@/features/auth/components/LoginForm";
 import type { LoginFormData } from "@/features/auth/schemas/login.schema";
+
+const CREDENCIAIS_INVALIDAS = "E-mail ou senha inválidos.";
 
 interface LoginLocationState {
   successMessage?: string;
@@ -32,10 +36,19 @@ export function LoginPage() {
     setSubmitError(null);
     setIsSubmitting(true);
     try {
-      await login({ email: data.email, senha: data.senha });
-      navigate(ROUTES.dashboard, { replace: true });
+      const loggedUser = await login({ email: data.email, senha: data.senha });
+      navigate(getInitialRoute(loggedUser), { replace: true });
     } catch (error) {
-      setSubmitError(getErrorMessage(error, "E-mail ou senha inválidos."));
+      // 401 é sempre a mesma mensagem genérica — o back-end não distingue
+      // e-mail inexistente, senha errada ou conta desativada (mesmo status,
+      // mesmo caso), então o front não tenta inferir qual foi. Só 400 (ex:
+      // e-mail ausente/mal formatado) mostra a mensagem específica do
+      // back-end; qualquer outro erro cai no fallback genérico de sempre.
+      if (isAxiosError(error) && error.response?.status === 401) {
+        setSubmitError(CREDENCIAIS_INVALIDAS);
+      } else {
+        setSubmitError(getErrorMessage(error, CREDENCIAIS_INVALIDAS));
+      }
     } finally {
       setIsSubmitting(false);
     }

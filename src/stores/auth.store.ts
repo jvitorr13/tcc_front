@@ -9,7 +9,7 @@ export type AuthStatus = "idle" | "loading" | "authenticated" | "unauthenticated
 interface AuthState {
   user: AuthUser | null;
   status: AuthStatus;
-  setSession: (user: AuthUser, accessToken: string, refreshToken?: string) => void;
+  setSession: (user: AuthUser, accessToken: string) => void;
   setStatus: (status: AuthStatus) => void;
   clearSession: () => void;
 }
@@ -24,8 +24,8 @@ export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   status: "idle",
 
-  setSession: (user, accessToken, refreshToken) => {
-    tokenStorage.setTokens(accessToken, refreshToken);
+  setSession: (user, accessToken) => {
+    tokenStorage.setAccessToken(accessToken);
     set({ user, status: "authenticated" });
   },
 
