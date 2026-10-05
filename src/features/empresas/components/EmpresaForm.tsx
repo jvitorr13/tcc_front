@@ -1,5 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Building2, Save } from "lucide-react";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 
 import { ErrorMessage } from "@/components/feedback/ErrorMessage";
@@ -17,6 +18,12 @@ export interface EmpresaFormProps {
   onCancel: () => void;
   isSubmitting: boolean;
   submitError?: string | null;
+  /**
+   * 409 "já existe uma empresa com este email ou cnpj" — a mensagem não diz
+   * qual dos dois, então marca os dois campos em vez de só um banner (ver
+   * ERROS DA API, seção 2: "mostrar a mensagem no campo duplicado").
+   */
+  conflictError?: { message: string; fields: Array<"email" | "cnpj"> } | null;
 }
 
 const EMPTY_DEFAULTS: EmpresaFormData = {
@@ -34,15 +41,31 @@ const EMPTY_DEFAULTS: EmpresaFormData = {
  * dois casos, diferente do usuário) — `mode` só troca o rótulo/ícone do
  * botão de submit.
  */
-export function EmpresaForm({ mode, defaultValues, onSubmit, onCancel, isSubmitting, submitError }: EmpresaFormProps) {
+export function EmpresaForm({
+  mode,
+  defaultValues,
+  onSubmit,
+  onCancel,
+  isSubmitting,
+  submitError,
+  conflictError,
+}: EmpresaFormProps) {
   const {
     register,
     handleSubmit,
+    setError,
     formState: { errors },
   } = useForm<EmpresaFormData>({
     resolver: zodResolver(empresaSchema),
     defaultValues: defaultValues ?? EMPTY_DEFAULTS,
   });
+
+  useEffect(() => {
+    if (!conflictError) return;
+    for (const field of conflictError.fields) {
+      setError(field, { type: "manual", message: conflictError.message });
+    }
+  }, [conflictError, setError]);
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-5">

@@ -1,5 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Save } from "lucide-react";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 
 import { ErrorMessage } from "@/components/feedback/ErrorMessage";
@@ -20,6 +21,8 @@ export interface EditUserFormProps {
   onCancel: () => void;
   isSubmitting: boolean;
   submitError?: string | null;
+  /** 409 "já existe um usuário com este email" — vai direto no campo, não banner. */
+  conflictError?: string | null;
 }
 
 /**
@@ -34,11 +37,13 @@ export function EditUserForm({
   onCancel,
   isSubmitting,
   submitError,
+  conflictError,
 }: EditUserFormProps) {
   const {
     register,
     handleSubmit,
     watch,
+    setError,
     formState: { errors },
   } = useForm<EditUserFormData>({
     resolver: zodResolver(editUserSchema),
@@ -46,6 +51,10 @@ export function EditUserForm({
   });
 
   const tipoUsuario = watch("tipo_usuario");
+
+  useEffect(() => {
+    if (conflictError) setError("email", { type: "manual", message: conflictError });
+  }, [conflictError, setError]);
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-5">

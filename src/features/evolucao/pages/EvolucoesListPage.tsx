@@ -9,18 +9,46 @@ import { Loading } from "@/components/feedback/Loading";
 import { Card } from "@/components/ui/Card";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { AppLayout } from "@/layouts/AppLayout";
+import { useAuth } from "@/hooks/useAuth";
 import { empresaEvolucaoPath } from "@/constants/routes";
 
 import { useEmpresasQuery } from "@/features/empresas";
 
+import { EvolucaoDetalhe } from "@/features/evolucao/components/EvolucaoDetalhe";
+
 /**
- * Ponto de entrada do menu lateral: a evolução em si é por empresa (GET
- * /empresas/:id/evolucao), então esta tela só deixa escolher qual empresa
- * ver — mesmo padrão de DashboardsListPage.
+ * Mesma rota (/evolucao) pros dois perfis — este componente decide o que
+ * renderizar com base em tipo_usuario, sem rota nem tela separada pra
+ * EMPRESA:
+ *
+ *  - EMPRESA: sem seletor de empresa nenhum (empresa_id sempre de
+ *    user.empresa_id) — o conteúdo de EvolucaoDetalhe aparece direto aqui.
+ *  - CONSULTOR: lista de empresas pra escolher qual ver (ainda não temos o
+ *    seletor definido — por ora é essa grade com busca); escolher uma leva
+ *    pro drill-down em EmpresaEvolucaoPage, que usa o MESMO EvolucaoDetalhe.
  */
 export function EvolucoesListPage() {
+  const { user } = useAuth();
+  const isEmpresa = user?.tipo_usuario === "EMPRESA";
+
   const { data: empresas, isLoading, isError, error } = useEmpresasQuery();
   const [search, setSearch] = useState("");
+
+  if (isEmpresa) {
+    if (!user?.empresa_id) {
+      return (
+        <AppLayout>
+          <ErrorMessage>Não foi possível identificar a empresa deste usuário.</ErrorMessage>
+        </AppLayout>
+      );
+    }
+
+    return (
+      <AppLayout>
+        <EvolucaoDetalhe empresaId={user.empresa_id} />
+      </AppLayout>
+    );
+  }
 
   const term = search.trim().toLowerCase();
   const filteredEmpresas = (empresas ?? []).filter((empresa) => {

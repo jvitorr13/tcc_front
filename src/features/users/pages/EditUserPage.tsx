@@ -1,6 +1,6 @@
 import { useNavigate, useParams } from "react-router-dom";
 
-import { getErrorMessage } from "@/lib/get-error-message";
+import { getErrorMessage, getHttpStatus } from "@/lib/get-error-message";
 
 import { ErrorMessage } from "@/components/feedback/ErrorMessage";
 import { Loading } from "@/components/feedback/Loading";
@@ -21,6 +21,7 @@ export function EditUserPage() {
   const { data: user, isLoading, isError, error: loadError } = useUserQuery(id);
   const { data: empresas } = useEmpresasQuery();
   const { mutateAsync, isPending, error: submitErrorObj } = useUpdateUserMutation();
+  const isConflict = getHttpStatus(submitErrorObj) === 409;
 
   async function handleSubmit(data: EditUserFormData) {
     if (!id) return;
@@ -67,8 +68,11 @@ export function EditUserPage() {
             onCancel={() => navigate(ROUTES.usuarios)}
             isSubmitting={isPending}
             submitError={
-              submitErrorObj ? getErrorMessage(submitErrorObj, "Não foi possível salvar as alterações.") : null
+              submitErrorObj && !isConflict
+                ? getErrorMessage(submitErrorObj, "Não foi possível salvar as alterações.")
+                : null
             }
+            conflictError={submitErrorObj && isConflict ? getErrorMessage(submitErrorObj) : null}
           />
         )}
       </FormPage>

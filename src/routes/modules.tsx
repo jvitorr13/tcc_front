@@ -10,15 +10,10 @@ import {
 } from "lucide-react";
 import type { ComponentType } from "react";
 
-import { ROUTES, empresaEvolucaoPath } from "@/constants/routes";
+import { ROUTES } from "@/constants/routes";
 
 import { DashboardsListPage, EmpresaDashboardPage } from "@/features/dashboard";
-import {
-  CreateDiagnosticoPage,
-  DiagnosticoDetalhePage,
-  DiagnosticosListPage,
-  MeuDiagnosticoPage,
-} from "@/features/diagnosticos";
+import { CreateDiagnosticoPage, DiagnosticoDetalhePage, DiagnosticosListPage } from "@/features/diagnosticos";
 import { CreateEmpresaPage, EditEmpresaPage, EmpresasListPage } from "@/features/empresas";
 import { EmpresaEvolucaoPage, EvolucoesListPage } from "@/features/evolucao";
 import type { AuthUser, TipoUsuario } from "@/features/auth";
@@ -31,7 +26,7 @@ import { DashboardPage } from "@/pages/DashboardPage";
 
 export interface AppModule {
   key: string;
-  /** Ausente = módulo só de menu, sem <Route> própria (ver "evolucao-menu" abaixo). */
+  /** Ausente = módulo só de menu, sem <Route> própria. */
   path?: string;
   element?: ComponentType;
   /** "all" = os dois perfis (CONSULTOR e EMPRESA); array restringe explicitamente. */
@@ -57,10 +52,11 @@ export interface AppModule {
  * própria. Mudar quem acessa o quê, ou o que aparece no menu, é só mexer
  * numa entrada aqui.
  *
- * Um módulo pode ter só rota (sub-rotas tipo :id/editar, sem entrada no
- * menu), só menu (ex: "evolucao-menu" — o destino muda por perfil de um
- * jeito que não é "a mesma rota pros dois", então fica separado das rotas
- * reais evolucao/empresa-evolucao), ou os dois.
+ * Um módulo pode ter só rota (sub-rotas tipo :id/editar, ou drill-downs
+ * tipo empresa-evolucao, sem entrada no menu), ou rota + menu — mas nunca
+ * duas rotas diferentes pro mesmo item de menu por perfil: quando o
+ * destino depende de quem está logado, o próprio componente da rota
+ * compartilhada decide o que renderizar (ver Diagnósticos e Evolução).
  */
 export const MODULES: AppModule[] = [
   {
@@ -100,24 +96,22 @@ export const MODULES: AppModule[] = [
     menu: { label: "Dashboards", description: "Painéis de tarefas por empresa", icon: LayoutDashboard },
   },
 
-  // Diagnósticos: a rota real muda por perfil, igual Evolução — CONSULTOR
-  // usa a listagem completa (todas as empresas, cria diagnóstico); EMPRESA
-  // não tem lista nenhuma pra escolher, só a própria (resolvida sozinha por
-  // MeuDiagnosticoPage a partir de user.empresa_id). Por isso o link de
-  // menu é uma entrada à parte (diagnosticos-menu, mais abaixo).
+  // Diagnósticos: MESMA rota pros dois perfis — DiagnosticosListPage decide
+  // internamente o que renderizar por tipo_usuario (listagem completa pro
+  // CONSULTOR, resolução automática pro próprio diagnóstico da EMPRESA).
+  // Nada de rota/tela separada aqui.
   {
     key: "diagnosticos",
     path: ROUTES.diagnosticos,
     element: DiagnosticosListPage,
-    roles: ["CONSULTOR"],
+    roles: "all",
+    menu: {
+      label: { CONSULTOR: "Diagnósticos", EMPRESA: "Diagnóstico" },
+      description: "Aplicar e acompanhar diagnósticos",
+      icon: ClipboardList,
+    },
   },
   { key: "diagnosticos-novo", path: ROUTES.diagnosticosNovo, element: CreateDiagnosticoPage, roles: ["CONSULTOR"] },
-  {
-    key: "meu-diagnostico",
-    path: ROUTES.meuDiagnostico,
-    element: MeuDiagnosticoPage,
-    roles: ["EMPRESA"],
-  },
   {
     key: "diagnostico-detalhe",
     path: ROUTES.diagnosticoDetalhe,
@@ -129,17 +123,9 @@ export const MODULES: AppModule[] = [
     empresaIdSearchParam: "empresa",
   },
   {
-    key: "diagnosticos-menu",
-    roles: "all",
-    menu: {
-      label: { CONSULTOR: "Diagnósticos", EMPRESA: "Diagnóstico" },
-      description: "Aplicar e acompanhar diagnósticos",
-      icon: ClipboardList,
-      to: (user) => (user.tipo_usuario === "EMPRESA" ? ROUTES.meuDiagnostico : ROUTES.diagnosticos),
-    },
-  },
-  {
-    // A empresa não deve visualizar a configuração do modelo de diagnóstico.
+    // Configuração de modelo/perguntas — sem entrada própria no menu lateral
+    // (nunca teve); acessada pelo botão "Modelos de diagnóstico" dentro da
+    // tela de Diagnósticos (só aparece pro CONSULTOR). EMPRESA nunca vê isso.
     key: "questionario-modelos",
     path: ROUTES.questionarioModelos,
     element: ModelosListPage,
@@ -163,7 +149,8 @@ export const MODULES: AppModule[] = [
       icon: Target,
     },
   },
-  { key: "planos-acao-novo", path: ROUTES.planosAcaoNovo, element: CreatePlanoAcaoPage, roles: "all" },
+  // Só CONSULTOR cria plano de ação — EMPRESA só acompanha (lista/detalhe).
+  { key: "planos-acao-novo", path: ROUTES.planosAcaoNovo, element: CreatePlanoAcaoPage, roles: ["CONSULTOR"] },
   { key: "plano-acao-detalhe", path: ROUTES.planoAcaoDetalhe, element: PlanoAcaoDetalhePage, roles: "all" },
 
   // Indicadores: módulo pronto (tela + back-end), só sem entrada no menu
@@ -172,28 +159,24 @@ export const MODULES: AppModule[] = [
   { key: "indicadores-novo", path: ROUTES.indicadoresNovo, element: CreateIndicadorPage, roles: "all" },
   { key: "indicador-detalhe", path: ROUTES.indicadorDetalhe, element: IndicadorDetalhePage, roles: "all" },
 
-  // Evolução: a rota real muda por perfil (CONSULTOR escolhe a empresa numa
-  // lista; EMPRESA só tem a própria, sem lista pra escolher) — por isso o
-  // link de menu vive numa entrada à parte (evolucao-menu, mais abaixo),
-  // que resolve o destino em runtime via menu.to(user).
-  { key: "evolucao", path: ROUTES.evolucao, element: EvolucoesListPage, roles: ["CONSULTOR"] },
+  // Evolução: MESMA rota pros dois perfis — EvolucoesListPage decide
+  // internamente o que renderizar por tipo_usuario (lista de empresas pro
+  // CONSULTOR escolher, conteúdo direto da própria empresa pra EMPRESA).
+  // /empresas/:id/evolucao continua existindo só como drill-down do
+  // CONSULTOR (a partir da lista, ou do ícone em EmpresasTable) — EMPRESA
+  // nunca precisa ir lá, já vê tudo em /evolucao.
+  {
+    key: "evolucao",
+    path: ROUTES.evolucao,
+    element: EvolucoesListPage,
+    roles: "all",
+    menu: { label: "Evolução", description: "Comparação de resultados ao longo do tempo", icon: TrendingUp },
+  },
   {
     key: "empresa-evolucao",
     path: ROUTES.empresaEvolucao,
     element: EmpresaEvolucaoPage,
-    roles: "all",
-    requireOwnEmpresaId: true,
-  },
-  {
-    key: "evolucao-menu",
-    roles: "all",
-    menu: {
-      label: "Evolução",
-      description: "Comparação de resultados ao longo do tempo",
-      icon: TrendingUp,
-      to: (user) =>
-        user.tipo_usuario === "EMPRESA" && user.empresa_id ? empresaEvolucaoPath(user.empresa_id) : ROUTES.evolucao,
-    },
+    roles: ["CONSULTOR"],
   },
 
   { key: "perfil", path: ROUTES.perfil, element: ProfilePage, roles: "all" },

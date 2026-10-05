@@ -1,6 +1,7 @@
 import { formatDecimal } from "@/utils/format";
 
 import { MaturidadeBadge } from "@/features/evolucao/components/MaturidadeBadge";
+import { NIVEL_MATURIDADE_DOT_CLASSES } from "@/features/evolucao/constants/maturidade";
 import { formatDataEvolucao } from "@/features/evolucao/utils/format-data-evolucao";
 import type { EvolucaoDiagnostico } from "@/features/evolucao/types/evolucao.types";
 
@@ -15,8 +16,10 @@ const PADDING = { top: 20, right: 20, bottom: 20, left: 20 };
 /**
  * Gráfico de linha em SVG puro (mesmo approach do gráfico de indicadores —
  * sem lib nova). Assume diagnosticos já ordenado por data_finalizacao
- * ascendente (garantido pelo back-end). Com 1 item só, desenha o ponto
- * único, sem linha.
+ * ascendente (garantido pelo back-end, nunca reordenado aqui). Com 1 item
+ * só, desenha o ponto único, sem linha. Cada ponto usa a cor do
+ * nivel_maturidade daquele diagnóstico específico (mapa fixo, ver
+ * constants/maturidade.ts) — não é sequencial nem por posição.
  */
 export function EvolucaoChart({ diagnosticos }: EvolucaoChartProps) {
   const values = diagnosticos.map((item) => item.media_geral);
@@ -58,7 +61,7 @@ export function EvolucaoChart({ diagnosticos }: EvolucaoChartProps) {
             cx={xFor(index)}
             cy={yFor(item.media_geral)}
             r={5.5}
-            className={index === 0 && diagnosticos.length > 1 ? "fill-gold-500" : "fill-ink-900"}
+            className={NIVEL_MATURIDADE_DOT_CLASSES[item.nivel_maturidade]}
           />
         ))}
       </svg>

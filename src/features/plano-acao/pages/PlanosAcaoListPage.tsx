@@ -14,6 +14,7 @@ import { Pagination } from "@/components/ui/Pagination";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { Select } from "@/components/ui/Select";
 import { usePagination } from "@/hooks/usePagination";
+import { useAuth } from "@/hooks/useAuth";
 import { AppLayout } from "@/layouts/AppLayout";
 import { ROUTES } from "@/constants/routes";
 
@@ -40,6 +41,9 @@ interface PlanosAcaoListLocationState {
  * é aplicado no front sobre o resultado já carregado.
  */
 export function PlanosAcaoListPage() {
+  const { user } = useAuth();
+  const isConsultor = user?.tipo_usuario === "CONSULTOR";
+
   const location = useLocation();
   const [successMessage] = useState(
     () => (location.state as PlanosAcaoListLocationState | null)?.successMessage ?? null,
@@ -142,13 +146,15 @@ export function PlanosAcaoListPage() {
           <h1 className="font-display text-2xl text-ink-900">Planos de Ação</h1>
           <p className="mt-1 text-sm text-ink-600">Acompanhe e gerencie as ações de melhoria das empresas.</p>
         </div>
-        <Link
-          to={ROUTES.planosAcaoNovo}
-          className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-ink-900 px-4 text-sm font-medium text-white transition-colors hover:bg-ink-800"
-        >
-          <Plus size={16} />
-          Novo Plano de Ação
-        </Link>
+        {isConsultor && (
+          <Link
+            to={ROUTES.planosAcaoNovo}
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-ink-900 px-4 text-sm font-medium text-white transition-colors hover:bg-ink-800"
+          >
+            <Plus size={16} />
+            Novo Plano de Ação
+          </Link>
+        )}
       </div>
 
       <div className="mt-6 max-w-sm">
@@ -232,13 +238,15 @@ export function PlanosAcaoListPage() {
         {!isLoading && !isError && filteredPlanos.length === 0 && (
           <div className="flex flex-col items-center gap-4 py-10 text-center">
             <p className="text-sm text-ink-500">Nenhum plano de ação encontrado.</p>
-            <Link
-              to={ROUTES.planosAcaoNovo}
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-ink-900 px-4 text-sm font-medium text-white transition-colors hover:bg-ink-800"
-            >
-              <Plus size={15} />
-              Criar primeiro plano
-            </Link>
+            {isConsultor && (
+              <Link
+                to={ROUTES.planosAcaoNovo}
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-ink-900 px-4 text-sm font-medium text-white transition-colors hover:bg-ink-800"
+              >
+                <Plus size={15} />
+                Criar primeiro plano
+              </Link>
+            )}
           </div>
         )}
 

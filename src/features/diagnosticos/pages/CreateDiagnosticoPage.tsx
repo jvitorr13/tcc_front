@@ -9,7 +9,7 @@ import { AppLayout } from "@/layouts/AppLayout";
 import { ROUTES, diagnosticoDetalhePath } from "@/constants/routes";
 
 import { useEmpresasQuery } from "@/features/empresas";
-import { useModelosQuery } from "@/features/questionario";
+import { getVersaoAtual, useModelosQuery } from "@/features/questionario";
 import { useUsersQuery } from "@/features/users";
 
 import { CreateDiagnosticoForm } from "@/features/diagnosticos/components/CreateDiagnosticoForm";
@@ -35,7 +35,7 @@ export function CreateDiagnosticoPage() {
   // Só modelos ativados (POST /modelos/:id/ativar) podem ser aplicados a um
   // diagnóstico — um modelo em rascunho pode não ter todas as perguntas
   // cadastradas ainda.
-  const modelosAtivos = (modelos ?? []).filter((modelo) => modelo.ativo);
+  const modelosAtivos = (modelos ?? []).filter((modelo) => getVersaoAtual(modelo)?.ativo);
 
   // Só monta o formulário depois que empresas/consultores/modelos chegam:
   // o campo Consultor já nasce pré-selecionado com o usuário logado via

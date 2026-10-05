@@ -24,7 +24,7 @@ import type {
  *   POST /diagnosticos                       { empresa_id, consultor_id, modelo_id, nome, descricao } -> Diagnostico
  *   POST /diagnosticos/:id/iniciar            -> Diagnostico (RASCUNHO -> EM_ANDAMENTO)
  *   GET  /diagnosticos/:id/perguntas          -> AreaComPerguntas[] (perguntas do modelo, por área)
- *   POST /diagnosticos/:id/respostas          { pergunta_id, valor } -> void
+ *   POST /diagnosticos/:id/respostas          { pergunta_id, valor } -> void (valor é SEMPRE string, ex: "3", nunca 3)
  *   GET  /diagnosticos/:id/pendencias         -> Pendencias (quantas perguntas obrigatórias faltam)
  *   POST /diagnosticos/:id/finalizar          -> Diagnostico (EM_ANDAMENTO -> CONCLUIDO)
  *   POST /diagnosticos/:id/resultado          -> ResultadoDiagnostico (calcula)

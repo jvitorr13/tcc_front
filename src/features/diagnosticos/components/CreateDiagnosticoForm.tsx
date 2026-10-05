@@ -12,7 +12,7 @@ import { ROUTES } from "@/constants/routes";
 
 import type { AuthUser } from "@/features/auth";
 import type { Empresa } from "@/features/empresas";
-import type { Modelo } from "@/features/questionario";
+import { getVersaoAtual, type Modelo } from "@/features/questionario";
 import {
   createDiagnosticoSchema,
   type CreateDiagnosticoFormData,
@@ -98,7 +98,7 @@ export function CreateDiagnosticoForm({
         <option value="">Selecione o modelo</option>
         {modelos.map((modelo) => (
           <option key={modelo.id} value={modelo.id}>
-            {modelo.nome} — v{modelo.versao}
+            {modelo.nome} — v{getVersaoAtual(modelo)?.numero_versao ?? "—"}
           </option>
         ))}
       </SelectField>

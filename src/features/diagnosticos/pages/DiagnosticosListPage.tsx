@@ -1,6 +1,6 @@
 import { Plus, Settings2 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, Navigate } from "react-router-dom";
 
 import { getErrorMessage } from "@/lib/get-error-message";
 
@@ -15,7 +15,8 @@ import { SearchInput } from "@/components/ui/SearchInput";
 import { Select } from "@/components/ui/Select";
 import { usePagination } from "@/hooks/usePagination";
 import { AppLayout } from "@/layouts/AppLayout";
-import { ROUTES } from "@/constants/routes";
+import { useAuth } from "@/hooks/useAuth";
+import { ROUTES, diagnosticoDetalhePath } from "@/constants/routes";
 
 import { useEmpresasQuery } from "@/features/empresas";
 import { useModelosQuery } from "@/features/questionario";
@@ -31,20 +32,29 @@ interface DiagnosticosListLocationState {
 }
 
 /**
- * Tela de Diagnósticos: lista de todos os diagnósticos aplicados (qualquer
- * empresa), com busca, filtros por empresa/status e paginação — mesmo
- * padrão arquitetural das telas de Usuários/Empresas. Cada linha leva para
- * a tela de detalhe (DiagnosticoDetalhePage), que mostra o formulário de
- * perguntas ou o resultado, dependendo do status.
+ * Mesma rota (/diagnosticos) pros dois perfis — este componente decide o
+ * que renderizar com base em tipo_usuario, não existe uma segunda rota nem
+ * uma segunda tela pra EMPRESA:
+ *
+ *  - CONSULTOR: listagem de verdade — busca, filtro por empresa/status,
+ *    paginação, botão "Novo diagnóstico". Pode ver várias empresas.
+ *  - EMPRESA: sem filtro, sem lista, sem botão de criar — empresa_id vem
+ *    sempre de user.empresa_id (nunca escolhido). Resolve sozinho qual
+ *    diagnóstico mostrar (normalmente só 1) e redireciona direto pra
+ *    DiagnosticoDetalhePage, o mesmo componente de detalhe que o CONSULTOR
+ *    usa (com a pergunta em modo somente leitura pra ele — ver
+ *    DiagnosticoDetalhePage/PerguntaScale).
  */
 export function DiagnosticosListPage() {
+  const { user } = useAuth();
+  const isEmpresa = user?.tipo_usuario === "EMPRESA";
+
   const location = useLocation();
   const [successMessage] = useState(
     () => (location.state as DiagnosticosListLocationState | null)?.successMessage ?? null,
   );
 
   const [search, setSearch] = useState("");
-
   const [empresaFilter, setEmpresaFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("");
   const [draftEmpresaFilter, setDraftEmpresaFilter] = useState("");
@@ -72,21 +82,35 @@ export function DiagnosticosListPage() {
   const { data: empresas, isLoading: isLoadingEmpresas } = useEmpresasQuery();
   const { data: modelos } = useModelosQuery();
 
-  // Não existe "listar diagnósticos de todas as empresas" no backend (GET
-  // /diagnosticos exige empresa_id) — sem filtro de empresa, busca-se uma
-  // vez por empresa e junta tudo (ver useDiagnosticosQuery).
+  // EMPRESA nunca escolhe empresa — é sempre a própria, do token. CONSULTOR
+  // sem filtro busca uma vez por empresa e junta tudo (não existe "listar
+  // diagnósticos de todas as empresas" no back-end — GET /diagnosticos
+  // exige empresa_id).
   const empresaIds = useMemo(() => {
+    if (isEmpresa) return user?.empresa_id ? [user.empresa_id] : [];
     if (empresaFilter) return [empresaFilter];
     return (empresas ?? []).map((empresa) => empresa.id);
-  }, [empresaFilter, empresas]);
+  }, [isEmpresa, user?.empresa_id, empresaFilter, empresas]);
 
   const {
     data: diagnosticos,
     isLoading: isLoadingDiagnosticos,
     isError,
     error,
-  } = useDiagnosticosQuery(empresaIds, statusFilter || undefined);
+  } = useDiagnosticosQuery(empresaIds, isEmpresa ? undefined : statusFilter || undefined);
   const isLoading = isLoadingEmpresas || isLoadingDiagnosticos;
+
+  // Só usado no caminho EMPRESA: qual diagnóstico mostrar. Prioriza o que
+  // ainda não foi concluído (é o que precisa de resposta); se só existem
+  // concluídos, mostra o mais recente.
+  const alvoEmpresa = useMemo(() => {
+    if (!diagnosticos || diagnosticos.length === 0) return undefined;
+    const emAndamento = diagnosticos.find((item) => item.status !== "CONCLUIDO");
+    if (emAndamento) return emAndamento;
+    return [...diagnosticos].sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+    )[0];
+  }, [diagnosticos]);
 
   const empresaNameById = useMemo(() => {
     const map = new Map<string, string>();
@@ -111,6 +135,48 @@ export function DiagnosticosListPage() {
   }, [diagnosticos, search, empresaNameById]);
 
   const { page, setPage, totalPages, paginatedItems: paginatedDiagnosticos } = usePagination(filteredDiagnosticos);
+
+  if (isEmpresa) {
+    if (isLoading) {
+      return (
+        <AppLayout>
+          <Loading label="Carregando diagnóstico…" />
+        </AppLayout>
+      );
+    }
+
+    if (isError) {
+      return (
+        <AppLayout>
+          <ErrorMessage>{getErrorMessage(error, "Não foi possível carregar o diagnóstico.")}</ErrorMessage>
+        </AppLayout>
+      );
+    }
+
+    if (!user?.empresa_id) {
+      return (
+        <AppLayout>
+          <ErrorMessage>Não foi possível identificar a empresa deste usuário.</ErrorMessage>
+        </AppLayout>
+      );
+    }
+
+    if (alvoEmpresa) {
+      return <Navigate to={diagnosticoDetalhePath(alvoEmpresa.id, user.empresa_id)} replace />;
+    }
+
+    return (
+      <AppLayout>
+        <h1 className="font-display text-2xl text-ink-900">Diagnóstico</h1>
+        <Card className="mt-6 flex flex-col items-center gap-2 px-6 py-16 text-center">
+          <p className="text-sm font-medium text-ink-900">Nenhum diagnóstico atribuído ainda.</p>
+          <p className="max-w-sm text-sm text-ink-500">
+            Assim que um consultor criar um diagnóstico para sua empresa, ele aparece aqui.
+          </p>
+        </Card>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>

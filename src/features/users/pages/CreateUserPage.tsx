@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 
-import { getErrorMessage } from "@/lib/get-error-message";
+import { getErrorMessage, getHttpStatus } from "@/lib/get-error-message";
 
 import { FormPage } from "@/components/layout/FormPage";
 import { AppLayout } from "@/layouts/AppLayout";
@@ -15,6 +15,7 @@ export function CreateUserPage() {
   const navigate = useNavigate();
   const { mutateAsync, isPending, error } = useCreateUserMutation();
   const { data: empresas } = useEmpresasQuery();
+  const isConflict = getHttpStatus(error) === 409;
 
   async function handleSubmit(data: CreateUserFormData) {
     try {
@@ -43,7 +44,8 @@ export function CreateUserPage() {
           onSubmit={handleSubmit}
           onCancel={() => navigate(ROUTES.usuarios)}
           isSubmitting={isPending}
-          submitError={error ? getErrorMessage(error, "Não foi possível cadastrar o usuário.") : null}
+          submitError={error && !isConflict ? getErrorMessage(error, "Não foi possível cadastrar o usuário.") : null}
+          conflictError={error && isConflict ? getErrorMessage(error) : null}
         />
       </FormPage>
     </AppLayout>

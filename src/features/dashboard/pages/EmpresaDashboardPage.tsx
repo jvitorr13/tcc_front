@@ -45,8 +45,8 @@ export function EmpresaDashboardPage() {
     return (
       <AppLayout>
         <ErrorMessage>{getErrorMessage(error, "Não foi possível carregar o dashboard.")}</ErrorMessage>
-        <Link to={ROUTES.empresas} className="mt-4 inline-block text-sm font-medium text-ink-700 hover:text-ink-900">
-          Voltar para Empresas
+        <Link to={ROUTES.dashboards} className="mt-4 inline-block text-sm font-medium text-ink-700 hover:text-ink-900">
+          Voltar para Dashboards
         </Link>
       </AppLayout>
     );
@@ -55,11 +55,11 @@ export function EmpresaDashboardPage() {
   return (
     <AppLayout>
       <Link
-        to={ROUTES.empresas}
+        to={ROUTES.dashboards}
         className="inline-flex items-center gap-1.5 text-sm font-medium text-ink-600 transition-colors hover:text-ink-900"
       >
         <ArrowLeft size={15} />
-        Voltar para Empresas
+        Voltar para Dashboards
       </Link>
 
       <div className="mt-4">

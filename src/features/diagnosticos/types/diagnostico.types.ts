@@ -56,8 +56,14 @@ export interface Pergunta {
   escala_max: number;
   obrigatoria: boolean;
   peso: number;
-  /** Assumido: valor já respondido, presente quando o consultor volta a um diagnóstico em andamento. */
-  resposta_atual?: number | null;
+  /**
+   * Valor já respondido, presente quando se volta a um diagnóstico em
+   * andamento. Vem como string (igual ao campo `valor` de POST/GET
+   * /respostas — a API usa string pra "valor" sempre, independente do
+   * tipo da pergunta); converter pra número ao semear o estado local, que
+   * é numérico pra casar com a escala Likert (ver DiagnosticoDetalhePage).
+   */
+  resposta_atual?: string | null;
 }
 
 export interface AreaComPerguntas {
@@ -67,9 +73,15 @@ export interface AreaComPerguntas {
   perguntas: Pergunta[];
 }
 
+/**
+ * `valor` é sempre string na API, pra qualquer tipo de pergunta (ESCALA,
+ * SIM_NAO, MULTIPLA_ESCOLHA, TEXTO) — mandar número sem aspas (`3` em vez
+ * de `"3"`) faz a API recusar o corpo inteiro com 400 "corpo da
+ * requisição inválido". Ver diagnosticosService.responder.
+ */
 export interface RegistrarRespostaInput {
   pergunta_id: string;
-  valor: number;
+  valor: string;
 }
 
 export interface Pendencias {

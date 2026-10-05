@@ -1,5 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { UserPlus } from "lucide-react";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 
 import { ErrorMessage } from "@/components/feedback/ErrorMessage";
@@ -19,6 +20,8 @@ export interface CreateUserFormProps {
   onCancel: () => void;
   isSubmitting: boolean;
   submitError?: string | null;
+  /** 409 "já existe um usuário com este email" — vai direto no campo, não banner. */
+  conflictError?: string | null;
 }
 
 /**
@@ -28,11 +31,19 @@ export interface CreateUserFormProps {
  * empresas também vem pronta por prop pelo mesmo motivo — o form não sabe
  * de nenhum service.
  */
-export function CreateUserForm({ empresas, onSubmit, onCancel, isSubmitting, submitError }: CreateUserFormProps) {
+export function CreateUserForm({
+  empresas,
+  onSubmit,
+  onCancel,
+  isSubmitting,
+  submitError,
+  conflictError,
+}: CreateUserFormProps) {
   const {
     register,
     handleSubmit,
     watch,
+    setError,
     formState: { errors },
   } = useForm<CreateUserFormData>({
     resolver: zodResolver(createUserSchema),
@@ -48,6 +59,10 @@ export function CreateUserForm({ empresas, onSubmit, onCancel, isSubmitting, sub
   });
 
   const tipoUsuario = watch("tipo_usuario");
+
+  useEffect(() => {
+    if (conflictError) setError("email", { type: "manual", message: conflictError });
+  }, [conflictError, setError]);
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-5">

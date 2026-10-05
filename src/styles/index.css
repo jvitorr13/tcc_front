@@ -32,6 +32,13 @@
   --color-success-600: #157a4a;
   --color-success-500: #1b9a58;
   --color-success-50: #eefaf3;
+
+  /* Só para o mapa de cor fixo de nível de maturidade (GERENCIADO) — ver
+     features/evolucao/constants/maturidade.ts. Precisa de uma 5ª cor
+     distinta de vermelho/âmbar/azul/verde, e a paleta não tinha nenhuma. */
+  --color-teal-600: #0f6d6a;
+  --color-teal-500: #158784;
+  --color-teal-50: #eaf7f6;
 }
 
 html {

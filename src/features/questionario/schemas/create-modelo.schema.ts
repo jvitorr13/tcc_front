@@ -21,12 +21,17 @@ export const perguntaSchema = z
 
 export const areaSchema = z.object({
   nome: z.string().min(1, "Informe o nome da área"),
+  descricao: z.string(),
   perguntas: z.array(perguntaSchema).min(1, "Adicione ao menos uma pergunta"),
 });
 
+/**
+ * Sem campo `versao`: POST /questionario/modelos cria a versão 1
+ * automaticamente numa transação única — não existe mais um passo
+ * separado de "versão" no formulário.
+ */
 export const createModeloSchema = z.object({
   nome: z.string().min(1, "Informe o nome do modelo"),
-  versao: z.string().min(1, "Informe a versão"),
   areas: z.array(areaSchema).min(1, "Adicione ao menos uma área"),
 });
 

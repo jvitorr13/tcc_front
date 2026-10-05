@@ -1,6 +1,6 @@
 import { useNavigate } from "react-router-dom";
 
-import { getErrorMessage } from "@/lib/get-error-message";
+import { getErrorMessage, getHttpStatus } from "@/lib/get-error-message";
 
 import { FormPage } from "@/components/layout/FormPage";
 import { AppLayout } from "@/layouts/AppLayout";
@@ -13,6 +13,10 @@ import type { EmpresaFormData } from "@/features/empresas/schemas/empresa.schema
 export function CreateEmpresaPage() {
   const navigate = useNavigate();
   const { mutateAsync, isPending, error } = useCreateEmpresaMutation();
+
+  // 409 (email/cnpj duplicado) vira erro nos campos, não banner — ver
+  // EmpresaForm.conflictError.
+  const isConflict = getHttpStatus(error) === 409;
 
   async function handleSubmit(data: EmpresaFormData) {
     try {
@@ -46,7 +50,10 @@ export function CreateEmpresaPage() {
           onSubmit={handleSubmit}
           onCancel={() => navigate(ROUTES.empresas)}
           isSubmitting={isPending}
-          submitError={error ? getErrorMessage(error, "Não foi possível cadastrar a empresa.") : null}
+          submitError={error && !isConflict ? getErrorMessage(error, "Não foi possível cadastrar a empresa.") : null}
+          conflictError={
+            error && isConflict ? { message: getErrorMessage(error), fields: ["email", "cnpj"] } : null
+          }
         />
       </FormPage>
     </AppLayout>

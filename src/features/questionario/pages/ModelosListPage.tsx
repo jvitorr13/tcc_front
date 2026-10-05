@@ -12,7 +12,7 @@ import { AppLayout } from "@/layouts/AppLayout";
 import { ROUTES } from "@/constants/routes";
 
 import { ModelosTable } from "@/features/questionario/components/ModelosTable";
-import { useAtivarModeloMutation } from "@/features/questionario/hooks/useAtivarModeloMutation";
+import { useAtivarVersaoMutation } from "@/features/questionario/hooks/useAtivarVersaoMutation";
 import { useModelosQuery } from "@/features/questionario/hooks/useModelosQuery";
 import type { Modelo } from "@/features/questionario/types/modelo.types";
 
@@ -32,22 +32,25 @@ export function ModelosListPage() {
     () => (location.state as ModelosListLocationState | null)?.successMessage ?? null,
   );
   const [ativarError, setAtivarError] = useState<string | null>(null);
-  const [ativandoId, setAtivandoId] = useState<string | null>(null);
+  const [ativandoVersaoId, setAtivandoVersaoId] = useState<string | null>(null);
 
   const { data: modelos, isLoading, isError, error } = useModelosQuery();
-  const ativarMutation = useAtivarModeloMutation();
+  const ativarMutation = useAtivarVersaoMutation();
 
-  async function handleAtivar(modelo: Modelo) {
+  // Só existe uma versão ativa no sistema inteiro: ativar esta substitui a
+  // que estava ativa antes (de qualquer modelo) — o back-end faz isso
+  // automaticamente, não precisa inativar nada daqui.
+  async function handleAtivar(modelo: Modelo, versaoId: string) {
     setAtivarError(null);
     setSuccessMessage(null);
-    setAtivandoId(modelo.id);
+    setAtivandoVersaoId(versaoId);
     try {
-      await ativarMutation.mutateAsync(modelo.id);
+      await ativarMutation.mutateAsync(versaoId);
       setSuccessMessage(`Modelo "${modelo.nome}" ativado. Já pode ser usado em novos diagnósticos.`);
     } catch (err) {
       setAtivarError(getErrorMessage(err, "Não foi possível ativar o modelo."));
     } finally {
-      setAtivandoId(null);
+      setAtivandoVersaoId(null);
     }
   }
 
@@ -88,7 +91,7 @@ export function ModelosListPage() {
           <ModelosTable
             modelos={modelos ?? []}
             onAtivar={handleAtivar}
-            isAtivando={(id) => ativandoId === id && ativarMutation.isPending}
+            isAtivando={(versaoId) => ativandoVersaoId === versaoId && ativarMutation.isPending}
           />
         )}
       </Card>

@@ -17,6 +17,7 @@ import { ROUTES } from "@/constants/routes";
 import { formatDate } from "@/utils/format";
 
 import { useEmpresasQuery } from "@/features/empresas";
+import { usePlanosAcaoQuery } from "@/features/plano-acao";
 import { useModelosQuery } from "@/features/questionario";
 
 import { AreaAccordion } from "@/features/diagnosticos/components/AreaAccordion";
@@ -92,6 +93,13 @@ export function DiagnosticoDetalhePage() {
 
   const isConcluido = diagnostico?.status === "CONCLUIDO";
 
+  // Só pra decidir se mostra o CTA "Criar plano de ação" (item: aparece se
+  // concluído E ainda não existe plano) — dispara só quando precisa.
+  const { data: planosDoDiagnostico } = usePlanosAcaoQuery(
+    isConcluido && isConsultor && diagnostico ? [{ diagnostico_id: diagnostico.id }] : [],
+  );
+  const jaTemPlanoDeAcao = (planosDoDiagnostico ?? []).length > 0;
+
   const {
     data: areas,
     isLoading: isLoadingPerguntas,
@@ -99,7 +107,12 @@ export function DiagnosticoDetalhePage() {
     error: perguntasError,
   } = usePerguntasQuery(!isConcluido ? id : undefined);
   const { data: pendencias, refetch: refetchPendencias } = usePendenciasQuery(!isConcluido ? id : undefined);
-  const { data: resultado, isLoading: isLoadingResultado } = useResultadoQuery(id, isConcluido);
+  const {
+    data: resultado,
+    isLoading: isLoadingResultado,
+    isError: isErrorResultado,
+    refetch: refetchResultado,
+  } = useResultadoQuery(id, isConcluido);
 
   const responderMutation = useResponderPerguntaMutation(id ?? "");
   const finalizarMutation = useFinalizarDiagnosticoMutation();
@@ -129,7 +142,7 @@ export function DiagnosticoDetalhePage() {
       const initial = new Map<string, number>();
       for (const area of areas) {
         for (const pergunta of area.perguntas) {
-          if (pergunta.resposta_atual != null) initial.set(pergunta.id, pergunta.resposta_atual);
+          if (pergunta.resposta_atual != null) initial.set(pergunta.id, Number(pergunta.resposta_atual));
         }
       }
       setRespostas(initial);
@@ -184,7 +197,7 @@ export function DiagnosticoDetalhePage() {
     setDirtyIds((prev) => new Set(prev).add(perguntaId));
 
     responderMutation.mutate(
-      { pergunta_id: perguntaId, valor },
+      { pergunta_id: perguntaId, valor: String(valor) },
       {
         onSuccess: () => {
           setDirtyIds((prev) => {
@@ -211,7 +224,7 @@ export function DiagnosticoDetalhePage() {
 
     const results = await Promise.allSettled(
       pendentes.map((perguntaId) =>
-        responderMutation.mutateAsync({ pergunta_id: perguntaId, valor: respostas.get(perguntaId)! }),
+        responderMutation.mutateAsync({ pergunta_id: perguntaId, valor: String(respostas.get(perguntaId)!) }),
       ),
     );
 
@@ -240,6 +253,8 @@ export function DiagnosticoDetalhePage() {
    * confirmação — finalizar em si só acontece em handleConfirmarFinalizar.
    */
   async function handleFinalizarClick() {
+    if (isConsultor) return;
+
     setFinalizarError(null);
     setAttemptedFinalize(true);
     setIsCheckingFinalizar(true);
@@ -267,8 +282,34 @@ export function DiagnosticoDetalhePage() {
     setConfirmingFinalizar(true);
   }
 
-  async function handleConfirmarFinalizar() {
+  /**
+   * GET /resultado pode dar 404 "diagnóstico ainda não tem resultado
+   * calculado" mesmo com o diagnóstico já CONCLUIDO (o cálculo é uma etapa
+   * separada, POST .../resultado, que pode não ter rodado ainda) — não é
+   * erro de verdade, é um estado pendente que este botão resolve. Como o
+   * diagnóstico já carregou com sucesso antes de chegarmos aqui, qualquer
+   * erro nesta query só pode ser esse caso (não comparamos o texto do erro
+   * pra saber disso, só o contexto: ver ERROS DA API, seção 4.5).
+   */
+  const [isCalculandoResultado, setIsCalculandoResultado] = useState(false);
+  const [calcularResultadoError, setCalcularResultadoError] = useState<string | null>(null);
+
+  async function handleCalcularResultado() {
     if (!id) return;
+    setIsCalculandoResultado(true);
+    setCalcularResultadoError(null);
+    try {
+      await calcularResultadoMutation.mutateAsync(id);
+      await refetchResultado();
+    } catch (err) {
+      setCalcularResultadoError(getErrorMessage(err, "Não foi possível calcular o resultado."));
+    } finally {
+      setIsCalculandoResultado(false);
+    }
+  }
+
+  async function handleConfirmarFinalizar() {
+    if (!id || isConsultor) return;
     setConfirmingFinalizar(false);
     setFinalizarError(null);
 
@@ -304,6 +345,9 @@ export function DiagnosticoDetalhePage() {
     return (
       <AppLayout>
         <ErrorMessage>{getErrorMessage(diagnosticoError, "Não foi possível carregar o diagnóstico.")}</ErrorMessage>
+        <Link to={ROUTES.diagnosticos} className="mt-4 inline-block text-sm font-medium text-ink-700 hover:text-ink-900">
+          Voltar para Diagnósticos
+        </Link>
       </AppLayout>
     );
   }
@@ -347,9 +391,23 @@ export function DiagnosticoDetalhePage() {
       {isConcluido ? (
         <div className="mt-6 space-y-6">
           {isLoadingResultado && <Loading label="Carregando resultado…" />}
+
+          {isErrorResultado && !isLoadingResultado && (
+            <Card className="flex flex-col items-center gap-3 px-6 py-12 text-center">
+              <p className="text-sm font-medium text-ink-900">Resultado ainda não calculado.</p>
+              <p className="max-w-sm text-sm text-ink-600">
+                O diagnóstico foi concluído, mas o cálculo do resultado ainda não rodou.
+              </p>
+              {calcularResultadoError && <ErrorMessage>{calcularResultadoError}</ErrorMessage>}
+              <Button type="button" size="sm" onClick={handleCalcularResultado} isLoading={isCalculandoResultado}>
+                Calcular resultado
+              </Button>
+            </Card>
+          )}
+
           {resultado && <ResultadoResumo resultado={resultado} />}
 
-          {resultado && isConsultor && (
+          {resultado && isConsultor && !jaTemPlanoDeAcao && (
             <Card className="flex flex-wrap items-center justify-between gap-4 p-6">
               <div className="flex items-start gap-3">
                 <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-gold-100 text-gold-600">

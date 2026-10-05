@@ -22,14 +22,15 @@ export const ROUTES = {
   empresasEditar: "/empresas/:id/editar",
   empresaDashboard: "/empresas/:id/dashboard",
   empresaEvolucao: "/empresas/:id/evolucao",
+  // Mesma rota pros dois perfis — CONSULTOR vê a listagem completa,
+  // EMPRESA é resolvido sozinho pro próprio diagnóstico (sempre
+  // user.empresa_id) e redirecionado direto pra diagnosticoDetalhe. Ver
+  // DiagnosticosListPage.
   diagnosticos: "/diagnosticos",
   diagnosticosNovo: "/diagnosticos/novo",
-  // Entrada de menu do perfil EMPRESA: resolve sozinho qual diagnóstico
-  // mostrar (empresa_id sempre de user.empresa_id) e redireciona pra
-  // diagnosticoDetalhe — ver MeuDiagnosticoPage.
-  meuDiagnostico: "/meu-diagnostico",
-  // Subárea de Diagnósticos, não um módulo próprio no menu lateral — ver
-  // Sidebar.tsx e o botão "Modelos de diagnóstico" em DiagnosticosListPage.
+  // Configuração de modelo/perguntas — sem entrada de menu ou botão em
+  // nenhuma tela por ora (modelo é fixo pros dois perfis nesta fase);
+  // rota e telas continuam existindo pra quando isso for reativado.
   questionarioModelos: "/diagnosticos/modelos",
   questionarioModelosNovo: "/diagnosticos/modelos/novo",
   // Uma tela só, que mostra o formulário de perguntas (RASCUNHO/EM_ANDAMENTO)

@@ -1,6 +1,6 @@
 import { useNavigate, useParams } from "react-router-dom";
 
-import { getErrorMessage } from "@/lib/get-error-message";
+import { getErrorMessage, getHttpStatus } from "@/lib/get-error-message";
 
 import { ErrorMessage } from "@/components/feedback/ErrorMessage";
 import { Loading } from "@/components/feedback/Loading";
@@ -19,6 +19,7 @@ export function EditEmpresaPage() {
 
   const { data: empresa, isLoading, isError, error: loadError } = useEmpresaQuery(id);
   const { mutateAsync, isPending, error: submitErrorObj } = useUpdateEmpresaMutation();
+  const isConflict = getHttpStatus(submitErrorObj) === 409;
 
   async function handleSubmit(data: EmpresaFormData) {
     if (!id) return;
@@ -69,7 +70,14 @@ export function EditEmpresaPage() {
             onCancel={() => navigate(ROUTES.empresas)}
             isSubmitting={isPending}
             submitError={
-              submitErrorObj ? getErrorMessage(submitErrorObj, "Não foi possível salvar as alterações.") : null
+              submitErrorObj && !isConflict
+                ? getErrorMessage(submitErrorObj, "Não foi possível salvar as alterações.")
+                : null
+            }
+            conflictError={
+              submitErrorObj && isConflict
+                ? { message: getErrorMessage(submitErrorObj), fields: ["email", "cnpj"] }
+                : null
             }
           />
         )}

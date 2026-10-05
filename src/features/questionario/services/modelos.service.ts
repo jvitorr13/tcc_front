@@ -1,23 +1,25 @@
-import { apiClient } from "@/lib/api-client";
 import { httpService } from "@/services/http.service";
-import type { ApiEnvelope } from "@/types/api";
 
 import type { CreateModeloInput, Modelo } from "@/features/questionario/types/modelo.types";
 
 /**
- * Contrato de API (internal/questionario), hoje sem Authorization exigido
- * pelo backend (o apiClient manda o Bearer token de qualquer forma quando
- * existir, então nada muda no front quando isso for plugado):
+ * Contrato de API (internal/questionario), só CONSULTOR:
  *
- *   POST /questionario/modelos            { nome, versao } -> Modelo
+ *   POST /questionario/modelos   { nome, areas: [{ nome, descricao,
+ *     perguntas: [{ texto, tipo, escala_min, escala_max, obrigatoria,
+ *     peso }] }] }
+ *     -> Modelo, já criado com a versão 1 (inativa) numa transação única.
+ *        A ordem das áreas/perguntas é a posição na lista enviada.
+ *        400 corpo inválido / área sem pergunta / pergunta inválida (a
+ *        mensagem indica a posição: "área N, pergunta M: ..."); 409 já
+ *        existe um modelo com este nome.
  *   GET  /questionario/modelos             -> Modelo[]
  *   GET  /questionario/modelos/:id         -> Modelo
- *   POST /questionario/modelos/:id/ativar  -> Modelo
  *
- * Ver areas.service.ts e perguntas.service.ts para os demais endpoints
- * deste domínio (POST /questionario/areas, POST /questionario/perguntas).
- * Não existe GET para áreas/perguntas de um modelo — por isso não há tela
- * de edição de modelo, só criação (ver CreateModeloPage).
+ * Não existe GET nem POST separados para área/pergunta — tudo nasce junto
+ * na criação do modelo, por isso não há tela de edição (só criação — ver
+ * getVersaoAtual em modelo.types.ts pra ler versão/status). Ativar uma
+ * versão é um recurso separado — ver versoes.service.ts.
  */
 const MODELOS_PATH = "/questionario/modelos";
 
@@ -30,10 +32,4 @@ export const modelosService = {
   create: (input: CreateModeloInput) => httpService.create<Modelo, CreateModeloInput>(MODELOS_PATH, input),
 
   getById: (id: string) => httpService.getById<Modelo>(MODELOS_PATH, id),
-
-  async ativar(id: string): Promise<Modelo> {
-    const response = await apiClient.post<ApiEnvelope<Modelo>>(`${MODELOS_PATH}/${id}/ativar`);
-    if (!response.data.data) throw new Error("Não foi possível ativar o modelo.");
-    return response.data.data;
-  },
 };

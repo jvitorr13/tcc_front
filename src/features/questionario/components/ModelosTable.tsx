@@ -1,12 +1,13 @@
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 
-import type { Modelo } from "@/features/questionario/types/modelo.types";
+import { getVersaoAtual, type Modelo } from "@/features/questionario/types/modelo.types";
 
 export interface ModelosTableProps {
   modelos: Modelo[];
-  onAtivar: (modelo: Modelo) => void;
-  isAtivando: (id: string) => boolean;
+  /** O que se ativa é a VERSÃO (versaoId), não o modelo — ver versoes.service.ts. */
+  onAtivar: (modelo: Modelo, versaoId: string) => void;
+  isAtivando: (versaoId: string) => boolean;
 }
 
 /**
@@ -27,22 +28,31 @@ export function ModelosTable({ modelos, onAtivar, isAtivando }: ModelosTableProp
           </tr>
         </thead>
         <tbody className="divide-y divide-ink-900/6">
-          {modelos.map((modelo) => (
-            <tr key={modelo.id}>
-              <td className="py-3 pr-4 font-medium text-ink-900">{modelo.nome}</td>
-              <td className="py-3 pr-4 text-ink-600">v{modelo.versao}</td>
-              <td className="py-3 pr-4">
-                <Badge variant={modelo.ativo ? "success" : "neutral"}>{modelo.ativo ? "Ativo" : "Rascunho"}</Badge>
-              </td>
-              <td className="py-3 pr-0 text-right">
-                {!modelo.ativo && (
-                  <Button size="sm" variant="secondary" isLoading={isAtivando(modelo.id)} onClick={() => onAtivar(modelo)}>
-                    Ativar
-                  </Button>
-                )}
-              </td>
-            </tr>
-          ))}
+          {modelos.map((modelo) => {
+            const versaoAtual = getVersaoAtual(modelo);
+            const ativo = versaoAtual?.ativo ?? false;
+            return (
+              <tr key={modelo.id}>
+                <td className="py-3 pr-4 font-medium text-ink-900">{modelo.nome}</td>
+                <td className="py-3 pr-4 text-ink-600">v{versaoAtual?.numero_versao ?? "—"}</td>
+                <td className="py-3 pr-4">
+                  <Badge variant={ativo ? "success" : "neutral"}>{ativo ? "Ativo" : "Rascunho"}</Badge>
+                </td>
+                <td className="py-3 pr-0 text-right">
+                  {!ativo && versaoAtual && (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      isLoading={isAtivando(versaoAtual.id)}
+                      onClick={() => onAtivar(modelo, versaoAtual.id)}
+                    >
+                      Ativar
+                    </Button>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

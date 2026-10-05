@@ -17,3 +17,13 @@ export function getErrorMessage(error: unknown, fallback = "Algo deu errado. Ten
   if (error instanceof Error && error.message) return error.message;
   return fallback;
 }
+
+/**
+ * Status HTTP de um erro de API, se houver. Toda decisão de FLUXO (o que
+ * fazer, não o que mostrar) deve usar isto — nunca comparar o texto de
+ * getErrorMessage(), que é só pra exibição e pode mudar sem aviso (ver
+ * ERROS DA API, seção 1).
+ */
+export function getHttpStatus(error: unknown): number | undefined {
+  return isAxiosError(error) ? error.response?.status : undefined;
+}
