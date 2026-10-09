@@ -42,7 +42,7 @@ export function ResultadoResumo({ resultado }: ResultadoResumoProps) {
       <Card className="p-6">
         <h2 className="font-display text-lg text-ink-900">Resultado por área</h2>
         <div className="mt-4 space-y-4">
-          {resultado.por_area.map((area) => (
+          {resultado.areas.map((area) => (
             <div key={area.area_id}>
               <div className="flex items-center justify-between text-sm">
                 <span className="text-ink-700">{area.area_nome}</span>

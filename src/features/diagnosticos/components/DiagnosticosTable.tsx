@@ -5,25 +5,14 @@ import { Badge } from "@/components/ui/Badge";
 import { diagnosticoDetalhePath } from "@/constants/routes";
 import { formatDate, formatDecimal } from "@/utils/format";
 
-import type { Diagnostico, DiagnosticoStatus } from "@/features/diagnosticos/types/diagnostico.types";
+import { DIAGNOSTICO_STATUS_LABELS, DIAGNOSTICO_STATUS_VARIANTS } from "@/features/diagnosticos/constants/status";
+import type { Diagnostico } from "@/features/diagnosticos/types/diagnostico.types";
 
 export interface DiagnosticosTableProps {
   diagnosticos: Diagnostico[];
   empresaNameById: Map<string, string>;
   modeloNameById: Map<string, string>;
 }
-
-const STATUS_LABELS: Record<DiagnosticoStatus, string> = {
-  RASCUNHO: "Rascunho",
-  EM_ANDAMENTO: "Em andamento",
-  CONCLUIDO: "Concluído",
-};
-
-const STATUS_VARIANTS: Record<DiagnosticoStatus, "neutral" | "gold" | "success"> = {
-  RASCUNHO: "neutral",
-  EM_ANDAMENTO: "gold",
-  CONCLUIDO: "success",
-};
 
 /**
  * Linha inteira é um link — não há ação de excluir aqui (diferente de
@@ -50,9 +39,11 @@ export function DiagnosticosTable({ diagnosticos, empresaNameById, modeloNameByI
               <td className="py-3 pr-4 font-medium text-ink-900">
                 {empresaNameById.get(diagnostico.empresa_id) ?? "—"}
               </td>
-              <td className="py-3 pr-4 text-ink-600">{modeloNameById.get(diagnostico.modelo_id) ?? "—"}</td>
+              <td className="py-3 pr-4 text-ink-600">{modeloNameById.get(diagnostico.modelo_versao_id) ?? "—"}</td>
               <td className="py-3 pr-4">
-                <Badge variant={STATUS_VARIANTS[diagnostico.status]}>{STATUS_LABELS[diagnostico.status]}</Badge>
+                <Badge variant={DIAGNOSTICO_STATUS_VARIANTS[diagnostico.status]}>
+                  {DIAGNOSTICO_STATUS_LABELS[diagnostico.status]}
+                </Badge>
               </td>
               <td className="py-3 pr-4 text-ink-600">
                 {diagnostico.nivel_maturidade

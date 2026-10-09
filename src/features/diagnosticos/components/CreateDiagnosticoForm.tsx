@@ -6,11 +6,9 @@ import { Link } from "react-router-dom";
 import { ErrorMessage } from "@/components/feedback/ErrorMessage";
 import { FormField } from "@/components/forms/FormField";
 import { SelectField } from "@/components/forms/SelectField";
-import { TextareaField } from "@/components/forms/TextareaField";
 import { Button } from "@/components/ui/Button";
 import { ROUTES } from "@/constants/routes";
 
-import type { AuthUser } from "@/features/auth";
 import type { Empresa } from "@/features/empresas";
 import { getVersaoAtual, type Modelo } from "@/features/questionario";
 import {
@@ -20,10 +18,8 @@ import {
 
 export interface CreateDiagnosticoFormProps {
   empresas: Empresa[];
-  consultores: AuthUser[];
-  modelos: Modelo[];
-  /** Preenche o campo Consultor já selecionado — normalmente quem está logado. */
-  defaultConsultorId: string;
+  /** Modelo com versão ativa — é ele que o back-end vai aplicar (só informativo). */
+  modeloAtivo: Modelo | undefined;
   onSubmit: (data: CreateDiagnosticoFormData) => void | Promise<void>;
   onCancel: () => void;
   isSubmitting: boolean;
@@ -37,9 +33,7 @@ export interface CreateDiagnosticoFormProps {
  */
 export function CreateDiagnosticoForm({
   empresas,
-  consultores,
-  modelos,
-  defaultConsultorId,
+  modeloAtivo,
   onSubmit,
   onCancel,
   isSubmitting,
@@ -53,10 +47,7 @@ export function CreateDiagnosticoForm({
     resolver: zodResolver(createDiagnosticoSchema),
     defaultValues: {
       nome: "",
-      descricao: "",
       empresa_id: "",
-      consultor_id: defaultConsultorId,
-      modelo_id: "",
     },
   });
 
@@ -69,13 +60,6 @@ export function CreateDiagnosticoForm({
         {...register("nome")}
       />
 
-      <TextareaField
-        label="Descrição"
-        placeholder="Contexto ou objetivo deste diagnóstico (opcional)"
-        error={errors.descricao?.message}
-        {...register("descricao")}
-      />
-
       <SelectField label="Empresa" error={errors.empresa_id?.message} {...register("empresa_id")}>
         <option value="">Selecione a empresa</option>
         {empresas.map((empresa) => (
@@ -85,25 +69,14 @@ export function CreateDiagnosticoForm({
         ))}
       </SelectField>
 
-      <SelectField label="Consultor responsável" error={errors.consultor_id?.message} {...register("consultor_id")}>
-        <option value="">Selecione o consultor</option>
-        {consultores.map((consultor) => (
-          <option key={consultor.id} value={consultor.id}>
-            {consultor.nome}
-          </option>
-        ))}
-      </SelectField>
+      {modeloAtivo && (
+        <p className="text-sm text-ink-600">
+          Modelo aplicado: <span className="font-medium text-ink-900">{modeloAtivo.nome}</span> — v
+          {getVersaoAtual(modeloAtivo)?.numero_versao ?? "—"} (versão ativa)
+        </p>
+      )}
 
-      <SelectField label="Modelo de diagnóstico" error={errors.modelo_id?.message} {...register("modelo_id")}>
-        <option value="">Selecione o modelo</option>
-        {modelos.map((modelo) => (
-          <option key={modelo.id} value={modelo.id}>
-            {modelo.nome} — v{getVersaoAtual(modelo)?.numero_versao ?? "—"}
-          </option>
-        ))}
-      </SelectField>
-
-      {modelos.length === 0 && (
+      {!modeloAtivo && (
         <p className="rounded-lg border border-gold-500/25 bg-gold-100/40 px-3.5 py-2.5 text-sm text-ink-700">
           Nenhum modelo de diagnóstico ativo ainda.{" "}
           <Link to={ROUTES.questionarioModelos} className="font-medium underline underline-offset-2">

@@ -60,7 +60,7 @@ export function EmpresasListPage() {
     setStatusFilter("");
   }
 
-  const { data: empresas, isLoading, isError, error } = useEmpresasQuery();
+  const { data: empresas, isLoading, isError, error } = useEmpresasQuery({ incluirInativas: true });
 
   const filteredEmpresas = useMemo(() => {
     if (!empresas) return [];

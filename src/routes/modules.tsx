@@ -19,7 +19,7 @@ import { EmpresaEvolucaoPage, EvolucoesListPage } from "@/features/evolucao";
 import type { AuthUser, TipoUsuario } from "@/features/auth";
 import { CreateIndicadorPage, IndicadorDetalhePage, IndicadoresListPage } from "@/features/indicadores";
 import { CreatePlanoAcaoPage, PlanoAcaoDetalhePage, PlanosAcaoListPage } from "@/features/plano-acao";
-import { CreateModeloPage, ModelosListPage } from "@/features/questionario";
+import { CreateModeloPage, ModelosListPage, NovaVersaoModeloPage } from "@/features/questionario";
 import { CreateUserPage, EditUserPage, ProfilePage, UsersListPage } from "@/features/users";
 import { ConfiguracoesPage } from "@/pages/ConfiguracoesPage";
 import { DashboardPage } from "@/pages/DashboardPage";
@@ -135,6 +135,12 @@ export const MODULES: AppModule[] = [
     key: "questionario-modelos-novo",
     path: ROUTES.questionarioModelosNovo,
     element: CreateModeloPage,
+    roles: ["CONSULTOR"],
+  },
+  {
+    key: "questionario-modelo-nova-versao",
+    path: ROUTES.questionarioModeloNovaVersao,
+    element: NovaVersaoModeloPage,
     roles: ["CONSULTOR"],
   },
 

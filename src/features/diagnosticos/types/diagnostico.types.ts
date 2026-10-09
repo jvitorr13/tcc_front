@@ -1,15 +1,20 @@
+import type { NivelMaturidade } from "@/features/evolucao/types/evolucao.types";
+import type { PerguntaOpcao } from "@/features/questionario/types/pergunta.types";
+
 /**
- * Tipos do domínio de diagnóstico (internal/diagnostico). Espelham o fluxo
- * combinado com o backend: criar -> iniciar -> responder -> finalizar ->
- * calcular resultado -> histórico.
+ * Tipos do domínio de diagnóstico (internal/diagnostico). Ciclo de status
+ * (o front nunca envia status — ele muda sozinho conforme as chamadas):
+ * RASCUNHO -(consultor: iniciar)-> PENDENTE -(1ª resposta)-> EM_ANDAMENTO
+ * -(empresa: finalizar)-> CONCLUIDO. A EMPRESA não enxerga RASCUNHO.
  */
-export type DiagnosticoStatus = "RASCUNHO" | "EM_ANDAMENTO" | "CONCLUIDO";
+export type DiagnosticoStatus = "RASCUNHO" | "PENDENTE" | "EM_ANDAMENTO" | "CONCLUIDO";
 
 export interface Diagnostico {
   id: string;
   empresa_id: string;
   consultor_id: string;
-  modelo_id: string;
+  /** Versão do modelo aplicada (não o modelo) — ver getModeloNomeDaVersao. */
+  modelo_versao_id: string;
   nome: string;
   descricao: string;
   status: DiagnosticoStatus;
@@ -18,22 +23,22 @@ export interface Diagnostico {
   created_at: string;
   updated_at: string;
   /**
-   * Assumido: quando CONCLUIDO, o backend denormaliza o resultado calculado
-   * no próprio registro do diagnóstico — evita N+1 (buscar o resultado de
-   * cada linha da listagem só pra mostrar a coluna Maturidade). Se o
-   * backend não preencher isso, a coluna cai graciosamente para "—"
-   * (ver DiagnosticosTable) em vez de quebrar.
+   * Não documentado — a API não devolve o resultado na listagem. Mantido
+   * opcional: se algum dia vier, a coluna Maturidade de DiagnosticosTable
+   * passa a mostrar; senão cai em "—".
    */
   nivel_maturidade?: string | null;
   media_geral?: number | null;
 }
 
+/**
+ * Body de POST /diagnosticos segundo o Swagger: só empresa_id + nome. O
+ * consultor é o usuário do token e o modelo é a versão ativa no momento —
+ * nenhum dos dois é escolhido pelo front.
+ */
 export interface CreateDiagnosticoInput {
   empresa_id: string;
-  consultor_id: string;
-  modelo_id: string;
   nome: string;
-  descricao?: string;
 }
 
 export interface DiagnosticosFilters {
@@ -41,51 +46,70 @@ export interface DiagnosticosFilters {
   status?: DiagnosticoStatus;
 }
 
+export type TipoPergunta = "ESCALA" | "SIM_NAO" | "MULTIPLA_ESCOLHA" | "TEXTO";
+
 /**
- * Shape de GET /diagnosticos/:id/perguntas, /pendencias e do payload de
- * POST /diagnosticos/:id/respostas — não documentado campo a campo na
- * conversa com o backend, só descrito conceitualmente ("perguntas
- * organizadas por área", "quantas perguntas obrigatórias faltam"). Ajustar
- * aqui se a resposta real do backend divergir.
+ * Pergunta como vem em GET /diagnosticos/:id/perguntas e em cada item de
+ * GET /diagnosticos/:id/pendencias (a API devolve a LISTA das obrigatórias
+ * sem resposta, no mesmo formato — não um contador).
  */
 export interface Pergunta {
   id: string;
+  area_id: string;
   texto: string;
-  tipo: string;
-  escala_min: number;
-  escala_max: number;
+  tipo: TipoPergunta;
+  /** Só em ESCALA; null nos outros tipos. */
+  escala_min: number | null;
+  escala_max: number | null;
   obrigatoria: boolean;
+  /** Só entra no cálculo do resultado; o front não exibe. */
   peso: number;
+  ordem: number;
   /**
-   * Valor já respondido, presente quando se volta a um diagnóstico em
-   * andamento. Vem como string (igual ao campo `valor` de POST/GET
-   * /respostas — a API usa string pra "valor" sempre, independente do
-   * tipo da pergunta); converter pra número ao semear o estado local, que
-   * é numérico pra casar com a escala Likert (ver DiagnosticoDetalhePage).
+   * Frase de cada nota (perguntas ESCALA), já na ordem de exibição. Vazio
+   * = mostrar só os números de escala_min a escala_max. A resposta enviada
+   * continua sendo a nota (`valor` da opção), nunca a frase.
    */
-  resposta_atual?: string | null;
+  opcoes: PerguntaOpcao[];
 }
 
+/** Item cru de GET /diagnosticos/:id/perguntas: `{ area, perguntas }`. */
+export interface PerguntasDaAreaResponse {
+  area: { id: string; nome: string; descricao: string; ordem: number };
+  perguntas: Pergunta[];
+}
+
+/**
+ * Formato achatado que a tela usa (o service converte de
+ * PerguntasDaAreaResponse) — área + suas perguntas, na ordem de exibição.
+ */
 export interface AreaComPerguntas {
   id: string;
   nome: string;
+  descricao: string;
   ordem: number;
   perguntas: Pergunta[];
 }
 
 /**
- * `valor` é sempre string na API, pra qualquer tipo de pergunta (ESCALA,
- * SIM_NAO, MULTIPLA_ESCOLHA, TEXTO) — mandar número sem aspas (`3` em vez
- * de `"3"`) faz a API recusar o corpo inteiro com 400 "corpo da
- * requisição inválido". Ver diagnosticosService.responder.
+ * `valor` é SEMPRE string, pra qualquer tipo: ESCALA = a nota ("4", nunca
+ * 4), SIM_NAO = "SIM" | "NAO", MULTIPLA_ESCOLHA/TEXTO = texto livre. "" só
+ * é aceito em pergunta não obrigatória (limpa a resposta). Reenviar pra
+ * mesma pergunta substitui a resposta anterior.
  */
 export interface RegistrarRespostaInput {
   pergunta_id: string;
   valor: string;
 }
 
-export interface Pendencias {
-  quantidade: number;
+/** Item de GET /diagnosticos/:id/respostas e retorno de POST .../respostas. */
+export interface Resposta {
+  id: string;
+  diagnostico_id: string;
+  pergunta_id: string;
+  valor: string;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface ResultadoPorArea {
@@ -94,8 +118,11 @@ export interface ResultadoPorArea {
   media: number;
 }
 
+/** POST (calcula e grava) e GET (já gravado) /diagnosticos/:id/resultado. */
 export interface ResultadoDiagnostico {
+  diagnostico_id: string;
   media_geral: number;
-  nivel_maturidade: string;
-  por_area: ResultadoPorArea[];
+  nivel_maturidade: NivelMaturidade;
+  data_calculo: string;
+  areas: ResultadoPorArea[];
 }

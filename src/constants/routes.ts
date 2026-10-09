@@ -33,6 +33,8 @@ export const ROUTES = {
   // rota e telas continuam existindo pra quando isso for reativado.
   questionarioModelos: "/diagnosticos/modelos",
   questionarioModelosNovo: "/diagnosticos/modelos/novo",
+  // Editar modelo = salvar versão nova a partir de outra (?base=<versaoId>, padrão a mais recente).
+  questionarioModeloNovaVersao: "/diagnosticos/modelos/:id/nova-versao",
   // Uma tela só, que mostra o formulário de perguntas (RASCUNHO/EM_ANDAMENTO)
   // ou o resultado (CONCLUIDO) dependendo do status do diagnóstico.
   diagnosticoDetalhe: "/diagnosticos/:id",
@@ -82,6 +84,12 @@ export function empresaEvolucaoPath(id: string): string {
  */
 export function diagnosticoDetalhePath(id: string, empresaId: string): string {
   return `/diagnosticos/${id}?empresa=${empresaId}`;
+}
+
+/** Resolve o path real do editor de nova versão de um modelo (base opcional; padrão: versão mais recente). */
+export function modeloNovaVersaoPath(modeloId: string, baseVersaoId?: string): string {
+  const path = `/diagnosticos/modelos/${modeloId}/nova-versao`;
+  return baseVersaoId ? `${path}?base=${baseVersaoId}` : path;
 }
 
 /** Resolve o path real de detalhe de um plano de ação a partir do :id da rota. */

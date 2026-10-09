@@ -30,11 +30,31 @@ export interface CreateModeloInput {
 }
 
 /**
- * Hoje todo modelo nasce com exatamente uma versão (a criação já cria a v1
- * junto) e não existe endpoint pra criar uma versão nova — por isso "a
- * versão atual" é sempre a de numero_versao mais alto. Continua correto se
- * um fluxo de nova versão for adicionado depois.
+ * Body de POST /questionario/modelos/:id/versoes: a árvore inteira da
+ * versão nova (mesmo formato de `areas` da criação do modelo). Versão salva
+ * nunca muda — editar = salvar uma versão nova.
+ */
+export interface CreateVersaoInput {
+  areas: CreateAreaInput[];
+}
+
+/**
+ * "A versão atual" de um modelo é a de numero_versao mais alto — a mais
+ * recente, criada na criação do modelo (v1) ou em "Nova versão". Não é
+ * necessariamente a ativa: uma versão nova nasce inativa até ser ativada.
  */
 export function getVersaoAtual(modelo: Pick<Modelo, "versoes">): ModeloVersao | undefined {
   return [...modelo.versoes].sort((a, b) => b.numero_versao - a.numero_versao)[0];
+}
+
+/**
+ * Diagnóstico guarda a VERSÃO aplicada (modelo_versao_id), não o modelo —
+ * acha o modelo dono dessa versão e devolve "Nome — vN" pra exibir.
+ */
+export function getModeloNomeDaVersao(modelos: Modelo[], versaoId: string): string | undefined {
+  for (const modelo of modelos) {
+    const versao = modelo.versoes.find((item) => item.id === versaoId);
+    if (versao) return `${modelo.nome} — v${versao.numero_versao}`;
+  }
+  return undefined;
 }

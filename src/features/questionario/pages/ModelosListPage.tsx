@@ -22,9 +22,9 @@ interface ModelosListLocationState {
 
 /**
  * Subárea de Diagnósticos (não tem entrada própria no menu lateral — ver
- * botão "Modelos de diagnóstico" em DiagnosticosListPage). Sem GET de
- * áreas/perguntas no back-end não há tela de edição: só listar, criar e
- * ativar.
+ * botão "Modelos de diagnóstico" em DiagnosticosListPage). Listar, criar,
+ * salvar nova versão (versão salva nunca muda — ver NovaVersaoModeloPage)
+ * e ativar.
  */
 export function ModelosListPage() {
   const location = useLocation();

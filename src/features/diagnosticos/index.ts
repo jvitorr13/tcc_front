@@ -6,7 +6,10 @@ export { DiagnosticosTable } from "@/features/diagnosticos/components/Diagnostic
 export { AreaAccordion } from "@/features/diagnosticos/components/AreaAccordion";
 export { CreateDiagnosticoForm } from "@/features/diagnosticos/components/CreateDiagnosticoForm";
 export { LikertLegend } from "@/features/diagnosticos/components/LikertLegend";
-export { PerguntaScale } from "@/features/diagnosticos/components/PerguntaScale";
+export { PerguntaField } from "@/features/diagnosticos/components/PerguntaField";
+export { PerguntaPasso } from "@/features/diagnosticos/components/PerguntaPasso";
+export { DiagnosticoAbertoCard } from "@/features/diagnosticos/components/DiagnosticoAbertoCard";
+export { DiagnosticoConcluidoItem } from "@/features/diagnosticos/components/DiagnosticoConcluidoItem";
 export { ResultadoResumo } from "@/features/diagnosticos/components/ResultadoResumo";
 
 export { LIKERT_LABELS } from "@/features/diagnosticos/constants/likert";
@@ -32,9 +35,10 @@ export type {
   Diagnostico,
   DiagnosticosFilters,
   DiagnosticoStatus,
-  Pendencias,
+  Resposta,
   Pergunta,
   RegistrarRespostaInput,
   ResultadoDiagnostico,
   ResultadoPorArea,
+  TipoPergunta,
 } from "@/features/diagnosticos/types/diagnostico.types";

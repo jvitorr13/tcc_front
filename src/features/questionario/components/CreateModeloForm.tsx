@@ -1,7 +1,14 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ClipboardCheck, Plus, Trash2 } from "lucide-react";
 import { useEffect } from "react";
-import { type Control, type FieldErrors, useFieldArray, useForm, type UseFormRegister } from "react-hook-form";
+import {
+  type Control,
+  type FieldErrors,
+  useFieldArray,
+  useForm,
+  type UseFormRegister,
+  useWatch,
+} from "react-hook-form";
 
 import { ErrorMessage } from "@/components/feedback/ErrorMessage";
 import { FormField } from "@/components/forms/FormField";
@@ -12,28 +19,52 @@ import { Label } from "@/components/ui/Label";
 import {
   createModeloSchema,
   type CreateModeloFormData,
+  OPCAO_DESCRICAO_MAX,
 } from "@/features/questionario/schemas/create-modelo.schema";
+import { isErroDeOpcoes, parseErroPosicao } from "@/features/questionario/utils/parse-erro-posicao";
 
 export interface CreateModeloFormProps {
   onSubmit: (data: CreateModeloFormData) => void | Promise<void>;
   onCancel: () => void;
   isSubmitting: boolean;
+  /**
+   * Erro geral do submit (vira banner). Se vier com a posição no começo
+   * ("área N, pergunta M[, opção K]: ..."), também é marcado no campo da
+   * pergunta/opção correspondente.
+   */
   submitError?: string | null;
   /** 409 "já existe um modelo com este nome" — vai direto no campo, não banner. */
   conflictError?: string | null;
+  /**
+   * Árvore inicial — usada pela tela de nova versão, que parte de uma
+   * versão existente (ver versaoToFormData). Sem isso, formulário vazio.
+   */
+  defaultValues?: CreateModeloFormData;
+  /** Nova versão: o nome é do modelo, não muda — só exibido. */
+  nomeReadOnly?: boolean;
+  submitLabel?: string;
 }
 
-const NOVA_PERGUNTA = { texto: "", escala_min: 1, escala_max: 5, obrigatoria: true, peso: 1 };
+const NOVA_PERGUNTA = { texto: "", escala_min: 1, escala_max: 5, obrigatoria: true, peso: 1, opcoes: [] };
 const NOVA_AREA = { nome: "", descricao: "", perguntas: [NOVA_PERGUNTA] };
 
 /**
- * Monta modelo + áreas + perguntas num só formulário (useFieldArray
- * aninhado) e envia tudo de uma vez: POST /questionario/modelos cria
- * modelo, versão 1 e as áreas/perguntas numa transação única no back-end,
- * então não há orquestração nem progresso por item aqui — só um submit,
- * como qualquer outro formulário do sistema.
+ * Monta modelo + áreas + perguntas (+ opções de cada escala) num só
+ * formulário (useFieldArray aninhado) e envia a árvore inteira de uma vez.
+ * Serve pros dois fluxos: criar modelo (POST /questionario/modelos) e
+ * salvar nova versão (POST /questionario/modelos/:id/versoes) — o back-end
+ * grava tudo numa transação única, então não há orquestração por item aqui.
  */
-export function CreateModeloForm({ onSubmit, onCancel, isSubmitting, submitError, conflictError }: CreateModeloFormProps) {
+export function CreateModeloForm({
+  onSubmit,
+  onCancel,
+  isSubmitting,
+  submitError,
+  conflictError,
+  defaultValues,
+  nomeReadOnly,
+  submitLabel = "Salvar modelo",
+}: CreateModeloFormProps) {
   const {
     register,
     control,
@@ -42,12 +73,31 @@ export function CreateModeloForm({ onSubmit, onCancel, isSubmitting, submitError
     formState: { errors },
   } = useForm<CreateModeloFormData>({
     resolver: zodResolver(createModeloSchema),
-    defaultValues: { nome: "", areas: [] },
+    defaultValues: defaultValues ?? { nome: "", areas: [] },
   });
 
   useEffect(() => {
     if (conflictError) setError("nome", { type: "manual", message: conflictError });
   }, [conflictError, setError]);
+
+  // 400 com posição: além do banner geral, marca o erro no campo exato.
+  useEffect(() => {
+    if (!submitError) return;
+    const erro = parseErroPosicao(submitError);
+    if (!erro) return;
+    const pergunta = `areas.${erro.areaIndex}.perguntas.${erro.perguntaIndex}` as const;
+    if (erro.opcaoIndex != null) {
+      setError(
+        `${pergunta}.opcoes.${erro.opcaoIndex}.descricao`,
+        { type: "server", message: erro.detalhe },
+        { shouldFocus: true },
+      );
+    } else if (isErroDeOpcoes(erro.detalhe)) {
+      setError(`${pergunta}.opcoes`, { type: "server", message: erro.detalhe });
+    } else {
+      setError(`${pergunta}.texto`, { type: "server", message: erro.detalhe }, { shouldFocus: true });
+    }
+  }, [submitError, setError]);
 
   const {
     fields: areaFields,
@@ -64,6 +114,8 @@ export function CreateModeloForm({ onSubmit, onCancel, isSubmitting, submitError
         placeholder="Ex: Diagnóstico de Maturidade Empresarial"
         error={errors.nome?.message}
         disabled={isSubmitting}
+        readOnly={nomeReadOnly}
+        className={nomeReadOnly ? "bg-canvas text-ink-600" : undefined}
         {...register("nome")}
       />
 
@@ -108,7 +160,7 @@ export function CreateModeloForm({ onSubmit, onCancel, isSubmitting, submitError
         </Button>
         <Button type="submit" size="lg" className="flex-1" isLoading={isSubmitting}>
           {!isSubmitting && <ClipboardCheck size={17} />}
-          Salvar modelo
+          {submitLabel}
         </Button>
       </div>
     </form>
@@ -166,6 +218,7 @@ function AreaFieldset({ control, register, errors, areaIndex, disabled, onRemove
         {perguntaFields.map((perguntaField, perguntaIndex) => (
           <PerguntaFieldset
             key={perguntaField.id}
+            control={control}
             register={register}
             errors={errors}
             areaIndex={areaIndex}
@@ -192,6 +245,7 @@ function AreaFieldset({ control, register, errors, areaIndex, disabled, onRemove
 }
 
 interface PerguntaFieldsetProps {
+  control: Control<CreateModeloFormData>;
   register: UseFormRegister<CreateModeloFormData>;
   errors: FieldErrors<CreateModeloFormData>;
   areaIndex: number;
@@ -200,18 +254,23 @@ interface PerguntaFieldsetProps {
   onRemove: () => void;
 }
 
-function PerguntaFieldset({ register, errors, areaIndex, perguntaIndex, disabled, onRemove }: PerguntaFieldsetProps) {
+function PerguntaFieldset({ control, register, errors, areaIndex, perguntaIndex, disabled, onRemove }: PerguntaFieldsetProps) {
   const perguntaErrors = errors.areas?.[areaIndex]?.perguntas?.[perguntaIndex];
   const textoId = `areas.${areaIndex}.perguntas.${perguntaIndex}.texto`;
+  const areaNome = useWatch({ control, name: `areas.${areaIndex}.nome` });
 
   return (
     <div className="rounded-lg border border-ink-900/8 bg-ink-900/[0.02] p-3.5">
-      <div className="flex items-start gap-2">
+      <p className="text-xs font-medium uppercase tracking-wide text-ink-500">
+        {`Pergunta ${perguntaIndex + 1}`}
+        {areaNome?.trim() && <span className="normal-case tracking-normal text-ink-500"> · Área: {areaNome}</span>}
+      </p>
+      <div className="mt-1.5 flex items-start gap-2">
         <div className="flex-1">
-          <Label htmlFor={textoId}>{`Pergunta ${perguntaIndex + 1}`}</Label>
+          <Label htmlFor={textoId}>Texto da pergunta</Label>
           <Input
             id={textoId}
-            placeholder="Ex: A empresa possui controle financeiro?"
+            placeholder="Ex: Como a empresa controla o fluxo de caixa?"
             hasError={Boolean(perguntaErrors?.texto)}
             disabled={disabled}
             {...register(`areas.${areaIndex}.perguntas.${perguntaIndex}.texto`)}
@@ -226,8 +285,15 @@ function PerguntaFieldset({ register, errors, areaIndex, perguntaIndex, disabled
       </div>
 
       <div className="mt-3 flex flex-wrap items-start gap-4">
+        <div className="w-28">
+          {/* Único tipo criado pelo editor hoje — fixado no payload (ver formToAreasInput). */}
+          <Label>Tipo</Label>
+          <p className="flex h-11 items-center rounded-lg border border-ink-900/10 bg-canvas px-3.5 text-sm text-ink-600">
+            Escala
+          </p>
+        </div>
         <div className="w-24">
-          <Label htmlFor={`${textoId}-escala-min`}>Escala mín.</Label>
+          <Label htmlFor={`${textoId}-escala-min`}>Mínimo</Label>
           <Input
             id={`${textoId}-escala-min`}
             type="number"
@@ -237,7 +303,7 @@ function PerguntaFieldset({ register, errors, areaIndex, perguntaIndex, disabled
           />
         </div>
         <div className="w-24">
-          <Label htmlFor={`${textoId}-escala-max`}>Escala máx.</Label>
+          <Label htmlFor={`${textoId}-escala-max`}>Máximo</Label>
           <Input
             id={`${textoId}-escala-max`}
             type="number"
@@ -268,6 +334,132 @@ function PerguntaFieldset({ register, errors, areaIndex, perguntaIndex, disabled
           Obrigatória
         </label>
       </div>
+
+      <OpcoesFieldset
+        control={control}
+        register={register}
+        errors={errors}
+        areaIndex={areaIndex}
+        perguntaIndex={perguntaIndex}
+        disabled={disabled}
+      />
+    </div>
+  );
+}
+
+type OpcoesFieldsetProps = Omit<PerguntaFieldsetProps, "onRemove">;
+
+/** Notas de escala_min a escala_max — vazio enquanto a escala digitada for inválida. */
+function rangeNotas(min: number, max: number): number[] {
+  if (!Number.isInteger(min) || !Number.isInteger(max) || max < min || max - min > 20) return [];
+  return Array.from({ length: max - min + 1 }, (_, index) => min + index);
+}
+
+/**
+ * "Descrever cada nível": opcional. Ligado, gera uma linha fixa por nota
+ * (de Mínimo a Máximo, em ordem crescente) pra escrever o texto que o
+ * cliente vê naquele nível; desligado, a pergunta fica só com números
+ * (opcoes = []). As linhas acompanham a escala: mudar Mínimo/Máximo
+ * recria a lista mantendo o texto das notas que continuam existindo — por
+ * isso nunca falta nem sobra nível, e a nota de cada linha não é editável.
+ */
+function OpcoesFieldset({ control, register, errors, areaIndex, perguntaIndex, disabled }: OpcoesFieldsetProps) {
+  const pergunta = `areas.${areaIndex}.perguntas.${perguntaIndex}` as const;
+  const { fields, replace } = useFieldArray({ control, name: `${pergunta}.opcoes` });
+  const [escalaMin, escalaMax, opcoes] = useWatch({
+    control,
+    name: [`${pergunta}.escala_min`, `${pergunta}.escala_max`, `${pergunta}.opcoes`],
+  });
+
+  const notas = rangeNotas(escalaMin, escalaMax);
+  const descreverNiveis = fields.length > 0;
+
+  // Mantém uma linha por nota quando a escala muda (ou quando uma versão
+  // antiga chega com as opções fora de ordem). Só regrava se a sequência de
+  // notas for diferente — senão entraria em loop com o próprio replace.
+  const sequenciaAtual = (opcoes ?? []).map((opcao) => opcao.valor).join(",");
+  const sequenciaEsperada = notas.join(",");
+  useEffect(() => {
+    if (!descreverNiveis || notas.length === 0 || sequenciaAtual === sequenciaEsperada) return;
+    const textoPorNota = new Map((opcoes ?? []).map((opcao) => [opcao.valor, opcao.descricao]));
+    replace(notas.map((nota) => ({ valor: nota, descricao: textoPorNota.get(nota) ?? "" })));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [descreverNiveis, sequenciaAtual, sequenciaEsperada]);
+
+  function toggle(checked: boolean) {
+    replace(checked ? notas.map((nota) => ({ valor: nota, descricao: "" })) : []);
+  }
+
+  const opcoesErrors = errors.areas?.[areaIndex]?.perguntas?.[perguntaIndex]?.opcoes;
+  const rootError = opcoesErrors?.message ?? opcoesErrors?.root?.message;
+  const toggleId = `${pergunta}.descrever-niveis`;
+
+  return (
+    <div className="mt-3 border-t border-ink-900/8 pt-3">
+      <label htmlFor={toggleId} className="flex w-fit items-center gap-2 text-sm font-medium text-ink-800">
+        <input
+          id={toggleId}
+          type="checkbox"
+          className="size-4 rounded border-ink-900/25 accent-ink-900"
+          checked={descreverNiveis}
+          onChange={(event) => toggle(event.target.checked)}
+          disabled={disabled || (!descreverNiveis && notas.length === 0)}
+        />
+        Descrever cada nível
+      </label>
+
+      {!descreverNiveis && (
+        <p className="mt-1 text-xs text-ink-500">
+          {notas.length > 0
+            ? `Sem descrição, o cliente vê só os números de ${escalaMin} a ${escalaMax}.`
+            : "Defina uma escala válida para poder descrever os níveis."}
+        </p>
+      )}
+
+      {descreverNiveis && (
+        <>
+          <ol className="mt-3 space-y-2">
+            {fields.map((field, index) => {
+              const opcaoErrors = opcoesErrors?.[index];
+              const texto = opcoes?.[index]?.descricao ?? "";
+              const id = `${pergunta}.opcoes.${index}.descricao`;
+              return (
+                <li key={field.id} className="flex items-start gap-3">
+                  <span
+                    aria-hidden
+                    className="flex size-11 shrink-0 items-center justify-center rounded-lg border border-ink-900/15 bg-white text-sm font-semibold text-ink-900"
+                  >
+                    {opcoes?.[index]?.valor}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <Input
+                      id={id}
+                      aria-label={`Descrição do nível ${opcoes?.[index]?.valor}`}
+                      placeholder="Ex: Controla em planilha, atualizada toda semana."
+                      maxLength={OPCAO_DESCRICAO_MAX}
+                      hasError={Boolean(opcaoErrors?.descricao)}
+                      disabled={disabled}
+                      {...register(`${pergunta}.opcoes.${index}.descricao`)}
+                    />
+                    <div className="mt-1 flex items-start justify-between gap-3">
+                      <ErrorMessage className="mt-0">{opcaoErrors?.descricao?.message}</ErrorMessage>
+                      <span className="ml-auto shrink-0 text-xs tabular-nums text-ink-500">
+                        {texto.length}/{OPCAO_DESCRICAO_MAX}
+                      </span>
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ol>
+
+          <p className="mt-2 text-xs text-ink-500">
+            Texto de até {OPCAO_DESCRICAO_MAX} caracteres. Todos os níveis precisam estar preenchidos.
+          </p>
+        </>
+      )}
+
+      {rootError && <ErrorMessage>{rootError}</ErrorMessage>}
     </div>
   );
 }

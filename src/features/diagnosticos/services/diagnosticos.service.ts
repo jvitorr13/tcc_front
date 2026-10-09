@@ -7,48 +7,46 @@ import type {
   CreateDiagnosticoInput,
   Diagnostico,
   DiagnosticoStatus,
-  Pendencias,
+  Pergunta,
+  PerguntasDaAreaResponse,
   RegistrarRespostaInput,
+  Resposta,
   ResultadoDiagnostico,
 } from "@/features/diagnosticos/types/diagnostico.types";
 
 /**
- * Contrato de API (internal/diagnostico), hoje sem Authorization exigido
- * pelo backend (o apiClient manda o Bearer token de qualquer forma quando
- * existir, então nada muda no front quando isso for plugado):
+ * Contrato de API (internal/diagnostico), conforme o Swagger. Todas as
+ * rotas exigem Bearer token.
  *
- *   GET  /diagnosticos?empresa_id=&status=  -> Diagnostico[] (empresa_id é OBRIGATÓRIO — confirmado: o backend
- *                                               responde 400 "empresa_id é obrigatório" sem ele. Não existe
- *                                               "listar tudo"; ver useDiagnosticosQuery, que busca por empresa
- *                                               e junta o resultado quando não há uma empresa específica filtrada.)
- *   POST /diagnosticos                       { empresa_id, consultor_id, modelo_id, nome, descricao } -> Diagnostico
- *   POST /diagnosticos/:id/iniciar            -> Diagnostico (RASCUNHO -> EM_ANDAMENTO)
- *   GET  /diagnosticos/:id/perguntas          -> AreaComPerguntas[] (perguntas do modelo, por área)
- *   POST /diagnosticos/:id/respostas          { pergunta_id, valor } -> void (valor é SEMPRE string, ex: "3", nunca 3)
- *   GET  /diagnosticos/:id/pendencias         -> Pendencias (quantas perguntas obrigatórias faltam)
- *   POST /diagnosticos/:id/finalizar          -> Diagnostico (EM_ANDAMENTO -> CONCLUIDO)
- *   POST /diagnosticos/:id/resultado          -> ResultadoDiagnostico (calcula)
- *   GET  /diagnosticos/:id/resultado          -> ResultadoDiagnostico (já calculado)
+ *   GET  /diagnosticos?empresa_id=           -> Diagnostico[] (empresa_id OBRIGATÓRIO; sem filtro de status
+ *                                               na API — o filtro por status é feito aqui, client-side)
+ *   POST /diagnosticos                       { empresa_id, nome } -> Diagnostico (só CONSULTOR; consultor = token,
+ *                                               modelo = versão ativa)
+ *   POST /diagnosticos/:id/iniciar            -> Diagnostico (RASCUNHO -> PENDENTE; só CONSULTOR)
+ *   GET  /diagnosticos/:id/perguntas          -> { area, perguntas }[] (já na ordem; achatado em AreaComPerguntas)
+ *   GET  /diagnosticos/:id/respostas          -> Resposta[] (respostas já gravadas)
+ *   POST /diagnosticos/:id/respostas          { pergunta_id, valor } -> Resposta (upsert; valor é SEMPRE string;
+ *                                               a 1ª resposta leva PENDENTE -> EM_ANDAMENTO; só EMPRESA)
+ *   GET  /diagnosticos/:id/pendencias         -> Pergunta[] (obrigatórias ainda sem resposta)
+ *   POST /diagnosticos/:id/finalizar          -> Diagnostico (EM_ANDAMENTO -> CONCLUIDO; só EMPRESA)
+ *   POST /diagnosticos/:id/resultado          -> ResultadoDiagnostico (calcula; só EMPRESA)
+ *   GET  /diagnosticos/:id/resultado          -> ResultadoDiagnostico (já calculado; 404 se ainda não)
  *
- * NÃO existe GET /diagnosticos/:id (confirmado: 404) — não tem como buscar
- * um diagnóstico avulso por id. Por isso a tela de detalhe carrega o
- * empresa_id na própria URL (?empresa=) e acha o diagnóstico dentro da
- * lista daquela empresa (ver useDiagnosticoQuery).
+ * NÃO existe GET /diagnosticos/:id — não tem como buscar um diagnóstico
+ * avulso por id. Por isso a tela de detalhe carrega o empresa_id na própria
+ * URL (?empresa=) e acha o diagnóstico dentro da lista daquela empresa (ver
+ * useDiagnosticoQuery).
  *
  * `list`/`create` usam httpService (shape genérico de CRUD). As ações
- * aninhadas ao diagnóstico (iniciar, perguntas, respostas, pendências,
- * finalizar, resultado) chamam apiClient diretamente, seguindo o mesmo
- * padrão de authService.login — não são um CRUD simples.
+ * aninhadas ao diagnóstico chamam apiClient diretamente — não são um CRUD
+ * simples.
  */
 const DIAGNOSTICOS_PATH = "/diagnosticos";
 
 export const diagnosticosService = {
   async list(empresaId: string, status?: DiagnosticoStatus): Promise<Diagnostico[]> {
-    const { items } = await httpService.list<Diagnostico>(DIAGNOSTICOS_PATH, {
-      empresa_id: empresaId,
-      status,
-    });
-    return items;
+    const { items } = await httpService.list<Diagnostico>(DIAGNOSTICOS_PATH, { empresa_id: empresaId });
+    return status ? items.filter((item) => item.status === status) : items;
   },
 
   create: (input: CreateDiagnosticoInput) =>
@@ -60,8 +58,22 @@ export const diagnosticosService = {
     return response.data.data;
   },
 
+  /** A API devolve `{ area, perguntas }[]`; aqui vira o formato achatado que a tela usa. */
   async getPerguntas(id: string): Promise<AreaComPerguntas[]> {
-    const response = await apiClient.get<ApiEnvelope<AreaComPerguntas[]>>(`${DIAGNOSTICOS_PATH}/${id}/perguntas`);
+    const response = await apiClient.get<ApiEnvelope<PerguntasDaAreaResponse[]>>(
+      `${DIAGNOSTICOS_PATH}/${id}/perguntas`,
+    );
+    return (response.data.data ?? []).map(({ area, perguntas }) => ({
+      id: area.id,
+      nome: area.nome,
+      descricao: area.descricao,
+      ordem: area.ordem,
+      perguntas: perguntas ?? [],
+    }));
+  },
+
+  async getRespostas(id: string): Promise<Resposta[]> {
+    const response = await apiClient.get<ApiEnvelope<Resposta[]>>(`${DIAGNOSTICOS_PATH}/${id}/respostas`);
     return response.data.data ?? [];
   },
 
@@ -69,9 +81,9 @@ export const diagnosticosService = {
     await apiClient.post(`${DIAGNOSTICOS_PATH}/${id}/respostas`, input);
   },
 
-  async getPendencias(id: string): Promise<Pendencias> {
-    const response = await apiClient.get<ApiEnvelope<Pendencias>>(`${DIAGNOSTICOS_PATH}/${id}/pendencias`);
-    return response.data.data ?? { quantidade: 0 };
+  async getPendencias(id: string): Promise<Pergunta[]> {
+    const response = await apiClient.get<ApiEnvelope<Pergunta[]>>(`${DIAGNOSTICOS_PATH}/${id}/pendencias`);
+    return response.data.data ?? [];
   },
 
   async finalizar(id: string): Promise<Diagnostico> {

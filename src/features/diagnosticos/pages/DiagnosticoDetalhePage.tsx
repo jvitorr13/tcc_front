@@ -16,12 +16,13 @@ import { useAuth } from "@/hooks/useAuth";
 import { ROUTES } from "@/constants/routes";
 import { formatDate } from "@/utils/format";
 
-import { useEmpresasQuery } from "@/features/empresas";
+import { useEmpresaQuery } from "@/features/empresas";
 import { usePlanosAcaoQuery } from "@/features/plano-acao";
-import { useModelosQuery } from "@/features/questionario";
+import { getModeloNomeDaVersao, useModelosQuery } from "@/features/questionario";
 
 import { AreaAccordion } from "@/features/diagnosticos/components/AreaAccordion";
 import { LikertLegend } from "@/features/diagnosticos/components/LikertLegend";
+import { PerguntaPasso, type StatusResposta } from "@/features/diagnosticos/components/PerguntaPasso";
 import { ResultadoResumo } from "@/features/diagnosticos/components/ResultadoResumo";
 import { useCalcularResultadoMutation } from "@/features/diagnosticos/hooks/useCalcularResultadoMutation";
 import { useDiagnosticoQuery } from "@/features/diagnosticos/hooks/useDiagnosticoQuery";
@@ -30,27 +31,20 @@ import { useIniciarDiagnosticoMutation } from "@/features/diagnosticos/hooks/use
 import { usePendenciasQuery } from "@/features/diagnosticos/hooks/usePendenciasQuery";
 import { usePerguntasQuery } from "@/features/diagnosticos/hooks/usePerguntasQuery";
 import { useResponderPerguntaMutation } from "@/features/diagnosticos/hooks/useResponderPerguntaMutation";
+import { useRespostasQuery } from "@/features/diagnosticos/hooks/useRespostasQuery";
 import { useResultadoQuery } from "@/features/diagnosticos/hooks/useResultadoQuery";
-import type { DiagnosticoStatus } from "@/features/diagnosticos/types/diagnostico.types";
-
-const STATUS_LABELS: Record<DiagnosticoStatus, string> = {
-  RASCUNHO: "Rascunho",
-  EM_ANDAMENTO: "Em andamento",
-  CONCLUIDO: "Concluído",
-};
-
-const STATUS_VARIANTS: Record<DiagnosticoStatus, "neutral" | "gold" | "success"> = {
-  RASCUNHO: "neutral",
-  EM_ANDAMENTO: "gold",
-  CONCLUIDO: "success",
-};
+import { DIAGNOSTICO_STATUS_LABELS, DIAGNOSTICO_STATUS_VARIANTS } from "@/features/diagnosticos/constants/status";
+import type { Pergunta } from "@/features/diagnosticos/types/diagnostico.types";
 
 /**
- * Tela única de detalhe do diagnóstico: mostra o formulário de perguntas
- * (RASCUNHO/EM_ANDAMENTO) ou o resultado calculado (CONCLUIDO) — o mesmo
+ * Tela única de detalhe do diagnóstico: mostra as perguntas
+ * (PENDENTE/EM_ANDAMENTO) ou o resultado calculado (CONCLUIDO) — o mesmo
  * lugar antes e depois de finalizar, sem navegar pra outra rota. O front
  * não calcula nada (nem média, nem maturidade); só coleta respostas e
  * exibe o que o back-end retorna.
+ *
+ * EMPRESA responde uma pergunta por vez (PerguntaPasso, "Pergunta X de N");
+ * CONSULTOR vê todas as áreas abertas, só leitura (AreaAccordion).
  */
 export function DiagnosticoDetalhePage() {
   const { id } = useParams<{ id: string }>();
@@ -71,25 +65,28 @@ export function DiagnosticoDetalhePage() {
     error: diagnosticoError,
     refetch: refetchDiagnostico,
   } = useDiagnosticoQuery(id, empresaId);
-  const { data: empresas } = useEmpresasQuery();
-  const { data: modelos } = useModelosQuery();
+  // GET /empresas/:id serve pros dois perfis (EMPRESA só a própria). Já a
+  // lista de modelos (/questionario/*) é só CONSULTOR — a EMPRESA levaria 403.
+  const { data: empresa } = useEmpresaQuery(empresaId);
+  const { data: modelos } = useModelosQuery({ enabled: isConsultor });
 
   const iniciarMutation = useIniciarDiagnosticoMutation();
   const [iniciando, setIniciando] = useState(false);
 
-  // Garante que o diagnóstico esteja EM_ANDAMENTO antes de mostrar as
-  // perguntas — chama POST .../iniciar sozinho se ele ainda estiver
-  // RASCUNHO (ex: o cadastro chegou até aqui, ou uma tentativa anterior
-  // falhou). Só dispara uma vez por status "RASCUNHO" observado.
+  // Libera o diagnóstico pra empresa (RASCUNHO -> PENDENTE) sozinho se ele
+  // ainda estiver em rascunho (ex: o cadastro chegou até aqui, ou uma
+  // tentativa anterior falhou). Só o CONSULTOR pode iniciar — a EMPRESA nem
+  // enxerga diagnósticos em RASCUNHO. Dispara uma vez por status "RASCUNHO"
+  // observado.
   useEffect(() => {
-    if (diagnostico?.status !== "RASCUNHO") return;
+    if (!isConsultor || diagnostico?.status !== "RASCUNHO") return;
     setIniciando(true);
     iniciarMutation
       .mutateAsync(diagnostico.id)
       .then(() => refetchDiagnostico())
       .finally(() => setIniciando(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [diagnostico?.status, diagnostico?.id]);
+  }, [isConsultor, diagnostico?.status, diagnostico?.id]);
 
   const isConcluido = diagnostico?.status === "CONCLUIDO";
 
@@ -106,6 +103,7 @@ export function DiagnosticoDetalhePage() {
     isError: isErrorPerguntas,
     error: perguntasError,
   } = usePerguntasQuery(!isConcluido ? id : undefined);
+  const { data: respostasSalvas } = useRespostasQuery(!isConcluido ? id : undefined);
   const { data: pendencias, refetch: refetchPendencias } = usePendenciasQuery(!isConcluido ? id : undefined);
   const {
     data: resultado,
@@ -118,7 +116,10 @@ export function DiagnosticoDetalhePage() {
   const finalizarMutation = useFinalizarDiagnosticoMutation();
   const calcularResultadoMutation = useCalcularResultadoMutation();
 
-  const [respostas, setRespostas] = useState<Map<string, number>>(new Map());
+  // pergunta_id -> valor como a API grava (sempre string). Só respostas não vazias.
+  const [respostas, setRespostas] = useState<Map<string, string>>(new Map());
+  // Erro 400 de POST /respostas por pergunta — mostrado junto ao campo.
+  const [perguntaErrors, setPerguntaErrors] = useState<Map<string, string>>(new Map());
   const [expandedAreaIds, setExpandedAreaIds] = useState<Set<string>>(new Set());
   const [dirtyIds, setDirtyIds] = useState<Set<string>>(new Set());
   const [isSavingProgresso, setIsSavingProgresso] = useState(false);
@@ -131,24 +132,34 @@ export function DiagnosticoDetalhePage() {
   // tentativa de finalizar — não faz sentido pintar tudo de vermelho antes
   // do consultor sequer começar a preencher.
   const [attemptedFinalize, setAttemptedFinalize] = useState(false);
+  // Passo atual da EMPRESA, contando as perguntas de todas as áreas em sequência.
+  const [currentIndex, setCurrentIndex] = useState(0);
 
-  // Semeia o estado local com respostas já salvas antes (ex: reabrindo um
-  // diagnóstico em andamento) e abre todas as áreas — só na primeira vez
-  // que as perguntas chegam.
+  const itens = useMemo(
+    () => (areas ?? []).flatMap((area) => area.perguntas.map((pergunta) => ({ area, pergunta }))),
+    [areas],
+  );
+
+  // Semeia o estado local com as respostas já gravadas (GET /respostas —
+  // ex: reabrindo um diagnóstico em andamento) e abre todas as áreas — só
+  // na primeira vez que perguntas E respostas chegam (casando pergunta_id
+  // com perguntas[].id). "" = resposta limpa, conta como não respondida.
   const seeded = useRef(false);
   useEffect(() => {
-    if (areas && !seeded.current) {
+    if (areas && respostasSalvas && !seeded.current) {
       seeded.current = true;
-      const initial = new Map<string, number>();
-      for (const area of areas) {
-        for (const pergunta of area.perguntas) {
-          if (pergunta.resposta_atual != null) initial.set(pergunta.id, Number(pergunta.resposta_atual));
-        }
+      const initial = new Map<string, string>();
+      for (const resposta of respostasSalvas) {
+        if (resposta.valor !== "") initial.set(resposta.pergunta_id, resposta.valor);
       }
       setRespostas(initial);
+      // Retoma de onde parou: primeira pergunta ainda sem resposta.
+      const perguntas = areas.flatMap((area) => area.perguntas);
+      const primeiraSemResposta = perguntas.findIndex((pergunta) => !initial.has(pergunta.id));
+      setCurrentIndex(primeiraSemResposta === -1 ? 0 : primeiraSemResposta);
       setExpandedAreaIds(new Set(areas.map((area) => area.id)));
     }
-  }, [areas]);
+  }, [areas, respostasSalvas]);
 
   function toggleArea(areaId: string) {
     setExpandedAreaIds((prev) => {
@@ -159,27 +170,35 @@ export function DiagnosticoDetalhePage() {
     });
   }
 
-  const empresa = useMemo(
-    () => (empresas ?? []).find((item) => item.id === diagnostico?.empresa_id),
-    [empresas, diagnostico],
-  );
-  const modelo = useMemo(
-    () => (modelos ?? []).find((item) => item.id === diagnostico?.modelo_id),
+  const modeloNome = useMemo(
+    () => (diagnostico ? getModeloNomeDaVersao(modelos ?? [], diagnostico.modelo_versao_id) : undefined),
     [modelos, diagnostico],
   );
 
-  // Quais áreas têm pergunta obrigatória sem resposta — usado só pra saber
-  // quais reabrir quando o consultor tenta finalizar sem terminar (a
-  // contagem "oficial" de pendências continua vindo do back-end).
-  const areasComPendencia = useMemo(() => {
+  function setPerguntaError(perguntaId: string, message: string | null) {
+    setPerguntaErrors((prev) => {
+      if (!message && !prev.has(perguntaId)) return prev;
+      const next = new Map(prev);
+      if (message) next.set(perguntaId, message);
+      else next.delete(perguntaId);
+      return next;
+    });
+  }
+
+  // Perguntas a destacar depois da 1ª tentativa de finalizar: as pendências
+  // do back-end (GET /pendencias — a fonte oficial) + obrigatórias que
+  // ficaram sem resposta localmente desde a última consulta.
+  const missingIds = useMemo(() => {
     const ids = new Set<string>();
+    if (!attemptedFinalize) return ids;
+    for (const pergunta of pendencias ?? []) ids.add(pergunta.id);
     for (const area of areas ?? []) {
-      if (area.perguntas.some((pergunta) => pergunta.obrigatoria && !respostas.has(pergunta.id))) {
-        ids.add(area.id);
+      for (const pergunta of area.perguntas) {
+        if (pergunta.obrigatoria && !respostas.has(pergunta.id)) ids.add(pergunta.id);
       }
     }
     return ids;
-  }, [areas, respostas]);
+  }, [attemptedFinalize, pendencias, areas, respostas]);
 
   /**
    * Cada clique já salva na hora (POST /respostas imediato) — não espera o
@@ -187,17 +206,33 @@ export function DiagnosticoDetalhePage() {
    * pra marcar o que falhou e precisa ser reenviado; no caminho feliz nunca
    * chega a ficar marcado, então "Salvar progresso" fica disabled (nada
    * pendente) exatamente como antes.
+   *
+   * `valor` já chega no formato da API (string). "" limpa a resposta, mas
+   * só é aceito em pergunta NÃO obrigatória — numa obrigatória nem envia
+   * (a API devolveria 400) e avisa no próprio campo.
    */
-  function handleAnswer(perguntaId: string, valor: number) {
+  function handleAnswer(pergunta: Pergunta, valor: string) {
     if (isConsultor) return;
+    const perguntaId = pergunta.id;
 
-    setRespostas((prev) => new Map(prev).set(perguntaId, valor));
+    if (valor === "" && pergunta.obrigatoria) {
+      setPerguntaError(perguntaId, "Resposta obrigatória não pode ficar vazia.");
+      return;
+    }
+
+    setRespostas((prev) => {
+      const next = new Map(prev);
+      if (valor === "") next.delete(perguntaId);
+      else next.set(perguntaId, valor);
+      return next;
+    });
+    setPerguntaError(perguntaId, null);
     setProgressoMessage(null);
     setProgressoError(null);
     setDirtyIds((prev) => new Set(prev).add(perguntaId));
 
     responderMutation.mutate(
-      { pergunta_id: perguntaId, valor: String(valor) },
+      { pergunta_id: perguntaId, valor },
       {
         onSuccess: () => {
           setDirtyIds((prev) => {
@@ -208,7 +243,7 @@ export function DiagnosticoDetalhePage() {
           refetchPendencias();
         },
         onError: (err) => {
-          setProgressoError(getErrorMessage(err, "Não foi possível salvar a resposta. Tente novamente."));
+          setPerguntaError(perguntaId, getErrorMessage(err, "Não foi possível salvar a resposta. Tente novamente."));
         },
       },
     );
@@ -224,11 +259,17 @@ export function DiagnosticoDetalhePage() {
 
     const results = await Promise.allSettled(
       pendentes.map((perguntaId) =>
-        responderMutation.mutateAsync({ pergunta_id: perguntaId, valor: String(respostas.get(perguntaId)!) }),
+        responderMutation.mutateAsync({ pergunta_id: perguntaId, valor: respostas.get(perguntaId) ?? "" }),
       ),
     );
 
     const failedIds = pendentes.filter((_, index) => results[index].status === "rejected");
+    results.forEach((result, index) => {
+      setPerguntaError(
+        pendentes[index],
+        result.status === "rejected" ? getErrorMessage(result.reason, "Não foi possível salvar a resposta.") : null,
+      );
+    });
     setDirtyIds(new Set(failedIds));
     setIsSavingProgresso(false);
     await refetchPendencias();
@@ -271,11 +312,16 @@ export function DiagnosticoDetalhePage() {
     const { data: freshPendencias } = await refetchPendencias();
     setIsCheckingFinalizar(false);
 
-    if ((freshPendencias?.quantidade ?? 0) > 0) {
+    const qtdPendentes = freshPendencias?.length ?? 0;
+    if (qtdPendentes > 0) {
       setFinalizarError(
-        `Não é possível finalizar: existem ${freshPendencias!.quantidade} pergunta${freshPendencias!.quantidade === 1 ? "" : "s"} obrigatória${freshPendencias!.quantidade === 1 ? "" : "s"} pendente${freshPendencias!.quantidade === 1 ? "" : "s"}.`,
+        `Não é possível finalizar: existem ${qtdPendentes} pergunta${qtdPendentes === 1 ? "" : "s"} obrigatória${qtdPendentes === 1 ? "" : "s"} pendente${qtdPendentes === 1 ? "" : "s"}.`,
       );
-      setExpandedAreaIds((prev) => new Set([...prev, ...areasComPendencia]));
+      // Leva direto à primeira pendente (e reabre as áreas delas, pela area_id).
+      const pendentesIds = new Set(freshPendencias!.map((pergunta) => pergunta.id));
+      const primeiraPendente = itens.findIndex((item) => pendentesIds.has(item.pergunta.id));
+      if (primeiraPendente !== -1) setCurrentIndex(primeiraPendente);
+      setExpandedAreaIds((prev) => new Set([...prev, ...freshPendencias!.map((pergunta) => pergunta.area_id)]));
       return;
     }
 
@@ -315,11 +361,22 @@ export function DiagnosticoDetalhePage() {
 
     try {
       await finalizarMutation.mutateAsync(id);
-      await calcularResultadoMutation.mutateAsync(id);
-      await refetchDiagnostico();
     } catch (err) {
+      // Ex.: 400 "diagnóstico precisa estar EM_ANDAMENTO" (nenhuma resposta
+      // ainda) ou "existem N pergunta(s) obrigatória(s) sem resposta".
       setFinalizarError(getErrorMessage(err, "Não foi possível finalizar o diagnóstico."));
+      return;
     }
+
+    // Já está CONCLUIDO: o cálculo é outra etapa. Se falhar (ex.: 400 "não
+    // possui respostas do tipo ESCALA"), a tela de concluído mostra o erro
+    // e o botão "Calcular resultado" pra tentar de novo.
+    try {
+      await calcularResultadoMutation.mutateAsync(id);
+    } catch (err) {
+      setCalcularResultadoError(getErrorMessage(err, "Não foi possível calcular o resultado."));
+    }
+    await refetchDiagnostico();
   }
 
   if (!empresaId) {
@@ -352,8 +409,24 @@ export function DiagnosticoDetalhePage() {
     );
   }
 
-  const totalPerguntas = (areas ?? []).reduce((sum, area) => sum + area.perguntas.length, 0);
-  const temPendencias = (pendencias?.quantidade ?? 0) > 0;
+  const totalPerguntas = itens.length;
+  const itemAtual = itens[Math.min(currentIndex, Math.max(itens.length - 1, 0))];
+
+  function statusDaPergunta(perguntaId: string): StatusResposta {
+    if (perguntaErrors.has(perguntaId)) return "error";
+    if (dirtyIds.has(perguntaId)) return "saving";
+    if (respostas.has(perguntaId)) return "saved";
+    return "idle";
+  }
+
+  // Legenda 1-5: só pra perguntas ESCALA numéricas (sem descrição por nível).
+  // EMPRESA: olha a pergunta da tela; CONSULTOR: qualquer uma da lista.
+  const isEscalaNumerica = (pergunta: Pergunta) => pergunta.tipo === "ESCALA" && (pergunta.opcoes ?? []).length === 0;
+  const mostrarLegenda = isConsultor
+    ? itens.some((item) => isEscalaNumerica(item.pergunta))
+    : Boolean(itemAtual && isEscalaNumerica(itemAtual.pergunta));
+  const qtdPendencias = pendencias?.length ?? 0;
+  const temPendencias = qtdPendencias > 0;
 
   return (
     <AppLayout>
@@ -363,13 +436,15 @@ export function DiagnosticoDetalhePage() {
           <p className="mt-1 text-sm text-ink-600">
             Empresa: {empresa ? empresa.nome_fantasia || empresa.razao_social : "—"}
           </p>
-          {modelo && <p className="mt-0.5 text-sm text-ink-600">Modelo: {modelo.nome}</p>}
+          {modeloNome && <p className="mt-0.5 text-sm text-ink-600">Modelo: {modeloNome}</p>}
           {isConcluido && (
             <p className="mt-0.5 text-sm text-ink-600">Concluído em: {formatDate(diagnostico.data_conclusao)}</p>
           )}
         </div>
 
-        <Badge variant={STATUS_VARIANTS[diagnostico.status]}>{STATUS_LABELS[diagnostico.status]}</Badge>
+        <Badge variant={DIAGNOSTICO_STATUS_VARIANTS[diagnostico.status]}>
+          {DIAGNOSTICO_STATUS_LABELS[diagnostico.status]}
+        </Badge>
       </div>
 
       {!isConcluido && totalPerguntas > 0 && (
@@ -396,12 +471,17 @@ export function DiagnosticoDetalhePage() {
             <Card className="flex flex-col items-center gap-3 px-6 py-12 text-center">
               <p className="text-sm font-medium text-ink-900">Resultado ainda não calculado.</p>
               <p className="max-w-sm text-sm text-ink-600">
-                O diagnóstico foi concluído, mas o cálculo do resultado ainda não rodou.
+                {isConsultor
+                  ? "O diagnóstico foi concluído, mas a empresa ainda não calculou o resultado."
+                  : "O diagnóstico foi concluído, mas o cálculo do resultado ainda não rodou."}
               </p>
               {calcularResultadoError && <ErrorMessage>{calcularResultadoError}</ErrorMessage>}
-              <Button type="button" size="sm" onClick={handleCalcularResultado} isLoading={isCalculandoResultado}>
-                Calcular resultado
-              </Button>
+              {/* POST /resultado é só EMPRESA — para o CONSULTOR daria 403. */}
+              {!isConsultor && (
+                <Button type="button" size="sm" onClick={handleCalcularResultado} isLoading={isCalculandoResultado}>
+                  Calcular resultado
+                </Button>
+              )}
             </Card>
           )}
 
@@ -442,20 +522,37 @@ export function DiagnosticoDetalhePage() {
             <p className="text-sm text-ink-500">Este modelo ainda não tem perguntas cadastradas.</p>
           )}
 
-          {areas && areas.length > 0 && <LikertLegend />}
+          {mostrarLegenda && <LikertLegend />}
 
-          {areas?.map((area) => (
-            <AreaAccordion
-              key={area.id}
-              area={area}
-              respostas={respostas}
-              onAnswer={handleAnswer}
-              expanded={expandedAreaIds.has(area.id)}
-              onToggle={() => toggleArea(area.id)}
-              highlightUnanswered={attemptedFinalize}
-              readOnly={isConsultor}
+          {isConsultor &&
+            areas?.map((area) => (
+              <AreaAccordion
+                key={area.id}
+                area={area}
+                respostas={respostas}
+                expanded={expandedAreaIds.has(area.id)}
+                onToggle={() => toggleArea(area.id)}
+                missingIds={missingIds}
+                errorsByPergunta={perguntaErrors}
+                readOnly
+              />
+            ))}
+
+          {!isConsultor && itemAtual && (
+            <PerguntaPasso
+              area={itemAtual.area}
+              pergunta={itemAtual.pergunta}
+              index={itens.indexOf(itemAtual)}
+              total={totalPerguntas}
+              value={respostas.get(itemAtual.pergunta.id)}
+              onAnswer={(valor) => handleAnswer(itemAtual.pergunta, valor)}
+              status={statusDaPergunta(itemAtual.pergunta.id)}
+              error={perguntaErrors.get(itemAtual.pergunta.id)}
+              isMissing={missingIds.has(itemAtual.pergunta.id)}
+              onPrev={() => setCurrentIndex((index) => Math.max(index - 1, 0))}
+              onNext={() => setCurrentIndex((index) => Math.min(index + 1, totalPerguntas - 1))}
             />
-          ))}
+          )}
 
           {areas && areas.length > 0 && isConsultor && (
             <Card className="p-6">
@@ -473,7 +570,7 @@ export function DiagnosticoDetalhePage() {
                 <div>
                   <p className="text-sm font-medium text-ink-900">Finalizar diagnóstico?</p>
                   <p className="mt-1 text-sm text-ink-600">
-                    Após a finalização, o diagnóstico será concluído e o resultado poderá ser calculado.
+                    Depois de finalizar não dá mais para alterar as respostas. O resultado é calculado em seguida.
                   </p>
                   <div className="mt-4 flex gap-3">
                     <Button type="button" variant="secondary" onClick={() => setConfirmingFinalizar(false)}>
@@ -493,7 +590,7 @@ export function DiagnosticoDetalhePage() {
                   <div>
                     <p className="text-sm text-ink-700">
                       {temPendencias
-                        ? `Ainda ${pendencias?.quantidade === 1 ? "existe" : "existem"} ${pendencias?.quantidade} pergunta${pendencias?.quantidade === 1 ? "" : "s"} sem resposta.`
+                        ? `Ainda ${qtdPendencias === 1 ? "existe" : "existem"} ${qtdPendencias} pergunta${qtdPendencias === 1 ? "" : "s"} obrigatória${qtdPendencias === 1 ? "" : "s"} sem resposta.`
                         : "Todas as perguntas foram respondidas."}
                     </p>
                     {dirtyIds.size > 0 && (

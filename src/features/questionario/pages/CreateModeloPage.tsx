@@ -9,6 +9,7 @@ import { ROUTES } from "@/constants/routes";
 import { CreateModeloForm } from "@/features/questionario/components/CreateModeloForm";
 import { useCreateModeloMutation } from "@/features/questionario/hooks/useCreateModeloMutation";
 import type { CreateModeloFormData } from "@/features/questionario/schemas/create-modelo.schema";
+import { formToAreasInput } from "@/features/questionario/utils/modelo-form";
 
 /**
  * POST /questionario/modelos cria modelo + versão 1 + áreas + perguntas
@@ -24,21 +25,7 @@ export function CreateModeloPage() {
 
   async function handleSubmit(data: CreateModeloFormData) {
     try {
-      const created = await mutateAsync({
-        nome: data.nome,
-        areas: data.areas.map((area) => ({
-          nome: area.nome,
-          descricao: area.descricao,
-          perguntas: area.perguntas.map((pergunta) => ({
-            texto: pergunta.texto,
-            tipo: "ESCALA",
-            escala_min: pergunta.escala_min,
-            escala_max: pergunta.escala_max,
-            obrigatoria: pergunta.obrigatoria,
-            peso: pergunta.peso,
-          })),
-        })),
-      });
+      const created = await mutateAsync({ nome: data.nome, areas: formToAreasInput(data.areas) });
       navigate(ROUTES.questionarioModelos, {
         replace: true,
         state: {

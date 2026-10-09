@@ -1,6 +1,6 @@
 import { Plus, Settings2 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Link, useLocation, Navigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
 import { getErrorMessage } from "@/lib/get-error-message";
 
@@ -16,11 +16,13 @@ import { Select } from "@/components/ui/Select";
 import { usePagination } from "@/hooks/usePagination";
 import { AppLayout } from "@/layouts/AppLayout";
 import { useAuth } from "@/hooks/useAuth";
-import { ROUTES, diagnosticoDetalhePath } from "@/constants/routes";
+import { ROUTES } from "@/constants/routes";
 
 import { useEmpresasQuery } from "@/features/empresas";
 import { useModelosQuery } from "@/features/questionario";
 
+import { DiagnosticoAbertoCard } from "@/features/diagnosticos/components/DiagnosticoAbertoCard";
+import { DiagnosticoConcluidoItem } from "@/features/diagnosticos/components/DiagnosticoConcluidoItem";
 import { DiagnosticosTable } from "@/features/diagnosticos/components/DiagnosticosTable";
 import { useDiagnosticosQuery } from "@/features/diagnosticos/hooks/useDiagnosticosQuery";
 import type { DiagnosticoStatus } from "@/features/diagnosticos/types/diagnostico.types";
@@ -38,12 +40,12 @@ interface DiagnosticosListLocationState {
  *
  *  - CONSULTOR: listagem de verdade — busca, filtro por empresa/status,
  *    paginação, botão "Novo diagnóstico". Pode ver várias empresas.
- *  - EMPRESA: sem filtro, sem lista, sem botão de criar — empresa_id vem
- *    sempre de user.empresa_id (nunca escolhido). Resolve sozinho qual
- *    diagnóstico mostrar (normalmente só 1) e redireciona direto pra
- *    DiagnosticoDetalhePage, o mesmo componente de detalhe que o CONSULTOR
- *    usa (com a pergunta em modo somente leitura pra ele — ver
- *    DiagnosticoDetalhePage/PerguntaScale).
+ *  - EMPRESA: sem filtro nem botão de criar — empresa_id vem sempre de
+ *    user.empresa_id (nunca escolhido). Mostra o diagnóstico em aberto
+ *    (PENDENTE/EM_ANDAMENTO — no máximo um) com o progresso e "Continuar
+ *    respondendo", e abaixo o histórico de concluídos com média e nível
+ *    de maturidade. Os dois levam pra DiagnosticoDetalhePage, a mesma tela
+ *    de detalhe que o CONSULTOR usa.
  */
 export function DiagnosticosListPage() {
   const { user } = useAuth();
@@ -79,8 +81,9 @@ export function DiagnosticosListPage() {
 
   const activeFilterCount = (empresaFilter ? 1 : 0) + (statusFilter ? 1 : 0);
 
-  const { data: empresas, isLoading: isLoadingEmpresas } = useEmpresasQuery();
-  const { data: modelos } = useModelosQuery();
+  // GET /empresas e /questionario/* são só CONSULTOR — a EMPRESA levaria 403.
+  const { data: empresas, isLoading: isLoadingEmpresas } = useEmpresasQuery({ enabled: !isEmpresa });
+  const { data: modelos } = useModelosQuery({ enabled: !isEmpresa });
 
   // EMPRESA nunca escolhe empresa — é sempre a própria, do token. CONSULTOR
   // sem filtro busca uma vez por empresa e junta tudo (não existe "listar
@@ -100,17 +103,23 @@ export function DiagnosticosListPage() {
   } = useDiagnosticosQuery(empresaIds, isEmpresa ? undefined : statusFilter || undefined);
   const isLoading = isLoadingEmpresas || isLoadingDiagnosticos;
 
-  // Só usado no caminho EMPRESA: qual diagnóstico mostrar. Prioriza o que
-  // ainda não foi concluído (é o que precisa de resposta); se só existem
-  // concluídos, mostra o mais recente.
-  const alvoEmpresa = useMemo(() => {
-    if (!diagnosticos || diagnosticos.length === 0) return undefined;
-    const emAndamento = diagnosticos.find((item) => item.status !== "CONCLUIDO");
-    if (emAndamento) return emAndamento;
-    return [...diagnosticos].sort(
-      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-    )[0];
-  }, [diagnosticos]);
+  // Só usados no caminho EMPRESA: o diagnóstico em aberto (a empresa tem no
+  // máximo um — RASCUNHO nem chega pra ela) e os concluídos, do mais
+  // recente pro mais antigo.
+  const diagnosticoAberto = useMemo(
+    () => diagnosticos?.find((item) => item.status === "PENDENTE" || item.status === "EM_ANDAMENTO"),
+    [diagnosticos],
+  );
+  const diagnosticosConcluidos = useMemo(
+    () =>
+      (diagnosticos ?? [])
+        .filter((item) => item.status === "CONCLUIDO")
+        .sort(
+          (a, b) =>
+            new Date(b.data_conclusao ?? b.updated_at).getTime() - new Date(a.data_conclusao ?? a.updated_at).getTime(),
+        ),
+    [diagnosticos],
+  );
 
   const empresaNameById = useMemo(() => {
     const map = new Map<string, string>();
@@ -120,7 +129,10 @@ export function DiagnosticosListPage() {
 
   const modeloNameById = useMemo(() => {
     const map = new Map<string, string>();
-    for (const modelo of modelos ?? []) map.set(modelo.id, modelo.nome);
+    // Chave = id da VERSÃO (o diagnóstico guarda modelo_versao_id).
+    for (const modelo of modelos ?? []) {
+      for (const versao of modelo.versoes) map.set(versao.id, `${modelo.nome} — v${versao.numero_versao}`);
+    }
     return map;
   }, [modelos]);
 
@@ -161,19 +173,40 @@ export function DiagnosticosListPage() {
       );
     }
 
-    if (alvoEmpresa) {
-      return <Navigate to={diagnosticoDetalhePath(alvoEmpresa.id, user.empresa_id)} replace />;
-    }
+    const semNenhum = !diagnosticoAberto && diagnosticosConcluidos.length === 0;
 
     return (
       <AppLayout>
-        <h1 className="font-display text-2xl text-ink-900">Diagnóstico</h1>
-        <Card className="mt-6 flex flex-col items-center gap-2 px-6 py-16 text-center">
-          <p className="text-sm font-medium text-ink-900">Nenhum diagnóstico atribuído ainda.</p>
-          <p className="max-w-sm text-sm text-ink-500">
-            Assim que um consultor criar um diagnóstico para sua empresa, ele aparece aqui.
-          </p>
-        </Card>
+        <h1 className="font-display text-2xl text-ink-900">Diagnósticos</h1>
+        <p className="mt-1 text-sm text-ink-600">Os diagnósticos da sua empresa, feitos com o seu consultor.</p>
+
+        {semNenhum && (
+          <Card className="mt-6 flex flex-col items-center gap-2 px-6 py-16 text-center">
+            <p className="text-sm font-medium text-ink-900">Nenhum diagnóstico atribuído ainda.</p>
+            <p className="max-w-sm text-sm text-ink-500">
+              Assim que um consultor liberar um diagnóstico para sua empresa, ele aparece aqui.
+            </p>
+          </Card>
+        )}
+
+        {diagnosticoAberto && (
+          <div className="mt-6">
+            <DiagnosticoAbertoCard diagnostico={diagnosticoAberto} />
+          </div>
+        )}
+
+        {diagnosticosConcluidos.length > 0 && (
+          <section className="mt-8">
+            <h2 className="font-display text-lg text-ink-900">Concluídos</h2>
+            <Card className="mt-3 px-6 py-2">
+              <ul className="divide-y divide-ink-900/6">
+                {diagnosticosConcluidos.map((diagnostico) => (
+                  <DiagnosticoConcluidoItem key={diagnostico.id} diagnostico={diagnostico} />
+                ))}
+              </ul>
+            </Card>
+          </section>
+        )}
       </AppLayout>
     );
   }
@@ -241,6 +274,7 @@ export function DiagnosticosListPage() {
             >
               <option value="">Todos</option>
               <option value="RASCUNHO">Rascunho</option>
+              <option value="PENDENTE">Aguardando respostas</option>
               <option value="EM_ANDAMENTO">Em andamento</option>
               <option value="CONCLUIDO">Concluído</option>
             </Select>

@@ -5,7 +5,8 @@ import type { CreateEmpresaInput, Empresa, UpdateEmpresaInput } from "@/features
 /**
  * Contrato de API (internal/empresa), sempre autenticado:
  *
- *   GET    /empresas?page=&page_size=  -> Empresa[] (paginado, meta com ApiPagination)
+ *   GET    /empresas?page=&page_size=&ativo=  -> Empresa[] (paginado, meta com ApiPagination; por padrão
+ *                                               só ativas — ativo=false traz também as inativas)
  *   GET    /empresas/:id                -> Empresa
  *   POST   /empresas                     { razao_social, nome_fantasia, cnpj, email, telefone, endereco, ativo } -> Empresa
  *   PUT    /empresas/:id                 (todos os campos opcionais) -> Empresa
@@ -19,8 +20,12 @@ import type { CreateEmpresaInput, Empresa, UpdateEmpresaInput } from "@/features
 const EMPRESAS_PATH = "/empresas";
 
 export const empresasService = {
-  async list(): Promise<Empresa[]> {
-    const { items } = await httpService.list<Empresa>(EMPRESAS_PATH, { page: 1, page_size: 100 });
+  async list(incluirInativas = false): Promise<Empresa[]> {
+    const { items } = await httpService.list<Empresa>(EMPRESAS_PATH, {
+      page: 1,
+      page_size: 100,
+      ...(incluirInativas && { ativo: false }),
+    });
     return items;
   },
 

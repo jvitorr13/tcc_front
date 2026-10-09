@@ -32,6 +32,7 @@ export interface CreatePlanoAcaoFormProps {
 
 const STATUS_LABELS: Record<Diagnostico["status"], string> = {
   RASCUNHO: "Rascunho",
+  PENDENTE: "Aguardando respostas",
   EM_ANDAMENTO: "Em andamento",
   CONCLUIDO: "Concluído",
 };

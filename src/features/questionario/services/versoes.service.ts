@@ -1,6 +1,8 @@
 import { apiClient } from "@/lib/api-client";
 import type { ApiEnvelope } from "@/types/api";
 
+import type { ModeloVersao } from "@/features/questionario/types/modelo.types";
+
 /**
  * Contrato de API (internal/questionario), só CONSULTOR. O que se "ativa" é
  * uma VERSÃO de um modelo, não o modelo em si — só existe UMA versão ativa
@@ -10,6 +12,8 @@ import type { ApiEnvelope } from "@/types/api";
  * qualquer modelo) — o front não precisa inativar a antiga. Diagnósticos
  * já criados não mudam, ficam presos à versão com que foram criados.
  *
+ *   GET  /questionario/versoes/:id         -> ModeloVersao com a árvore
+ *     completa (áreas -> perguntas -> opcoes, já na ordem de exibição).
  *   POST /questionario/versoes/:id/ativar  -> { id, modelo_id,
  *     numero_versao, ativo, created_at } (sem `areas` nesta resposta)
  *
@@ -27,6 +31,12 @@ export interface VersaoAtivacao {
 }
 
 export const versoesService = {
+  async getById(versaoId: string): Promise<ModeloVersao> {
+    const response = await apiClient.get<ApiEnvelope<ModeloVersao>>(`${VERSOES_PATH}/${versaoId}`);
+    if (!response.data.data) throw new Error("Versão não encontrada.");
+    return response.data.data;
+  },
+
   async ativar(versaoId: string): Promise<VersaoAtivacao> {
     const response = await apiClient.post<ApiEnvelope<VersaoAtivacao>>(`${VERSOES_PATH}/${versaoId}/ativar`);
     if (!response.data.data) throw new Error("Não foi possível ativar a versão.");

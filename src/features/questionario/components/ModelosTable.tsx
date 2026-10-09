@@ -1,5 +1,9 @@
+import { CopyPlus } from "lucide-react";
+import { Link } from "react-router-dom";
+
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { modeloNovaVersaoPath } from "@/constants/routes";
 
 import { getVersaoAtual, type Modelo } from "@/features/questionario/types/modelo.types";
 
@@ -11,9 +15,9 @@ export interface ModelosTableProps {
 }
 
 /**
- * Sem GET de áreas/perguntas no back-end, não há como reabrir um modelo
- * pra edição — a única ação disponível numa linha é ativar (se ainda
- * estiver em rascunho). Ver modelos.service.ts.
+ * Ações por linha: "Nova versão" (versão salva nunca muda — editar é criar
+ * uma versão nova a partir da mais recente) e "Ativar" (se a mais recente
+ * ainda estiver em rascunho). Ver modelos.service.ts.
  */
 export function ModelosTable({ modelos, onAtivar, isAtivando }: ModelosTableProps) {
   return (
@@ -39,16 +43,27 @@ export function ModelosTable({ modelos, onAtivar, isAtivando }: ModelosTableProp
                   <Badge variant={ativo ? "success" : "neutral"}>{ativo ? "Ativo" : "Rascunho"}</Badge>
                 </td>
                 <td className="py-3 pr-0 text-right">
-                  {!ativo && versaoAtual && (
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      isLoading={isAtivando(versaoAtual.id)}
-                      onClick={() => onAtivar(modelo, versaoAtual.id)}
-                    >
-                      Ativar
-                    </Button>
-                  )}
+                  <div className="flex items-center justify-end gap-2">
+                    {versaoAtual && (
+                      <Link
+                        to={modeloNovaVersaoPath(modelo.id, versaoAtual.id)}
+                        className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg px-3 text-sm font-medium text-ink-700 transition-colors hover:bg-ink-900/5"
+                      >
+                        <CopyPlus size={14} />
+                        Nova versão
+                      </Link>
+                    )}
+                    {!ativo && versaoAtual && (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        isLoading={isAtivando(versaoAtual.id)}
+                        onClick={() => onAtivar(modelo, versaoAtual.id)}
+                      >
+                        Ativar
+                      </Button>
+                    )}
+                  </div>
                 </td>
               </tr>
             );

@@ -3,18 +3,21 @@ import { ChevronDown } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import { cn } from "@/utils/cn";
 
-import { PerguntaScale } from "@/features/diagnosticos/components/PerguntaScale";
-import type { AreaComPerguntas } from "@/features/diagnosticos/types/diagnostico.types";
+import { PerguntaField } from "@/features/diagnosticos/components/PerguntaField";
+import type { AreaComPerguntas, Pergunta } from "@/features/diagnosticos/types/diagnostico.types";
 
 export interface AreaAccordionProps {
   area: AreaComPerguntas;
-  respostas: Map<string, number>;
-  onAnswer?: (perguntaId: string, valor: number) => void;
+  /** pergunta_id -> valor (string, como a API grava). Só respostas não vazias. */
+  respostas: Map<string, string>;
+  onAnswer?: (pergunta: Pergunta, valor: string) => void;
   expanded: boolean;
   onToggle: () => void;
-  /** Repassado para cada PerguntaScale — liga o destaque de obrigatória sem resposta. */
-  highlightUnanswered?: boolean;
-  /** Repassado para cada PerguntaScale — ver PerguntaScale.readOnly. */
+  /** Perguntas a destacar como "precisa ser respondida" — ver DiagnosticoDetalhePage. */
+  missingIds?: Set<string>;
+  /** Erro 400 de POST /respostas por pergunta, mostrado junto ao campo. */
+  errorsByPergunta?: Map<string, string>;
+  /** Repassado para cada PerguntaField — ver PerguntaField.readOnly. */
   readOnly?: boolean;
 }
 
@@ -29,7 +32,8 @@ export function AreaAccordion({
   onAnswer,
   expanded,
   onToggle,
-  highlightUnanswered,
+  missingIds,
+  errorsByPergunta,
   readOnly,
 }: AreaAccordionProps) {
   const respondidas = area.perguntas.filter((pergunta) => respostas.has(pergunta.id)).length;
@@ -54,12 +58,13 @@ export function AreaAccordion({
       {expanded && (
         <div className="divide-y divide-ink-900/6 border-t border-ink-900/6 px-6">
           {area.perguntas.map((pergunta) => (
-            <PerguntaScale
+            <PerguntaField
               key={pergunta.id}
               pergunta={pergunta}
               value={respostas.get(pergunta.id)}
-              onAnswer={readOnly ? undefined : (valor) => onAnswer?.(pergunta.id, valor)}
-              highlightUnanswered={highlightUnanswered}
+              onAnswer={readOnly ? undefined : (valor) => onAnswer?.(pergunta, valor)}
+              isMissing={missingIds?.has(pergunta.id)}
+              error={errorsByPergunta?.get(pergunta.id)}
               readOnly={readOnly}
             />
           ))}
