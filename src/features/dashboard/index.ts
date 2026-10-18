@@ -1,5 +1,6 @@
 export { DashboardsListPage } from "@/features/dashboard/pages/DashboardsListPage";
 export { EmpresaDashboardPage } from "@/features/dashboard/pages/EmpresaDashboardPage";
+export { EmpresaDashboardDetalhe } from "@/features/dashboard/components/EmpresaDashboardDetalhe";
 
 export { StatusDistributionBar } from "@/features/dashboard/components/StatusDistributionBar";
 

@@ -8,19 +8,40 @@ import { ErrorMessage } from "@/components/feedback/ErrorMessage";
 import { Loading } from "@/components/feedback/Loading";
 import { Card } from "@/components/ui/Card";
 import { SearchInput } from "@/components/ui/SearchInput";
+import { useAuth } from "@/hooks/useAuth";
 import { AppLayout } from "@/layouts/AppLayout";
 import { empresaDashboardPath } from "@/constants/routes";
 
 import { useEmpresasQuery } from "@/features/empresas";
 
+import { EmpresaDashboardDetalhe } from "@/features/dashboard/components/EmpresaDashboardDetalhe";
+
 /**
- * Ponto de entrada do menu lateral: o dashboard em si é por empresa (GET
- * /empresas/:id/dashboard), então esta tela só deixa escolher qual empresa
- * ver — cada card leva para EmpresaDashboardPage.
+ * Ponto de entrada do menu lateral "Dashboard" — mesma rota pros dois
+ * perfis (como Evolução):
+ *  - CONSULTOR: escolhe a empresa; cada card leva pra EmpresaDashboardPage.
+ *  - EMPRESA: vê direto o dashboard da própria empresa (empresa_id sempre
+ *    de user.empresa_id; GET /empresas/:id/dashboard só aceita a própria).
  */
 export function DashboardsListPage() {
-  const { data: empresas, isLoading, isError, error } = useEmpresasQuery();
+  const { user } = useAuth();
+  const isEmpresa = user?.tipo_usuario === "EMPRESA";
+
+  // GET /empresas é só CONSULTOR — a EMPRESA levaria 403.
+  const { data: empresas, isLoading, isError, error } = useEmpresasQuery({ enabled: !isEmpresa });
   const [search, setSearch] = useState("");
+
+  if (isEmpresa) {
+    return (
+      <AppLayout>
+        {user?.empresa_id ? (
+          <EmpresaDashboardDetalhe empresaId={user.empresa_id} />
+        ) : (
+          <ErrorMessage>Não foi possível identificar a empresa deste usuário.</ErrorMessage>
+        )}
+      </AppLayout>
+    );
+  }
 
   const term = search.trim().toLowerCase();
   const filteredEmpresas = (empresas ?? []).filter((empresa) => {

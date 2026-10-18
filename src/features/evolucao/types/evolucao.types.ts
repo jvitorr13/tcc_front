@@ -3,7 +3,8 @@
  * no front — só leitura do que o back-end já persistiu (médias, nível de
  * maturidade, variação). `diagnostico_id` é string (não numérico).
  */
-export type NivelMaturidade = "INICIAL" | "BASICO" | "ESTRUTURADO" | "GERENCIADO" | "OTIMIZADO";
+/** Códigos devolvidos pela API em nivel_maturidade (ver NIVEIS_MATURIDADE pro texto de tela). */
+export type NivelMaturidade = "INICIAL" | "GERENCIADO" | "PADRONIZADO" | "PREVISIVEL" | "OTIMIZADO";
 
 export interface EvolucaoAreaMedia {
   nome: string;

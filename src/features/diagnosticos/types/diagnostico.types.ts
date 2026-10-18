@@ -66,9 +66,10 @@ export interface Pergunta {
   peso: number;
   ordem: number;
   /**
-   * Frase de cada nota (perguntas ESCALA), já na ordem de exibição. Vazio
-   * = mostrar só os números de escala_min a escala_max. A resposta enviada
-   * continua sendo a nota (`valor` da opção), nunca a frase.
+   * Descrição de cada nível (perguntas ESCALA) — o que a empresa lê pra
+   * escolher. A tela monta os níveis de escala_min a escala_max e casa a
+   * descrição pelo `valor`; nível sem descrição (só em dado antigo) mostra
+   * só o número. A resposta enviada é sempre o número do nível.
    */
   opcoes: PerguntaOpcao[];
 }

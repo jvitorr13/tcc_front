@@ -1,6 +1,6 @@
 import { ArrowRight, Target } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { getErrorMessage } from "@/lib/get-error-message";
 
@@ -16,14 +16,17 @@ import { useAuth } from "@/hooks/useAuth";
 import { ROUTES } from "@/constants/routes";
 import { formatDate } from "@/utils/format";
 
+import { ApontamentosPanel } from "@/features/apontamentos";
 import { useEmpresaQuery } from "@/features/empresas";
 import { usePlanosAcaoQuery } from "@/features/plano-acao";
 import { getModeloNomeDaVersao, useModelosQuery } from "@/features/questionario";
 
 import { AreaAccordion } from "@/features/diagnosticos/components/AreaAccordion";
+import { DiagnosticoProgresso } from "@/features/diagnosticos/components/DiagnosticoProgresso";
 import { LikertLegend } from "@/features/diagnosticos/components/LikertLegend";
 import { PerguntaPasso, type StatusResposta } from "@/features/diagnosticos/components/PerguntaPasso";
 import { ResultadoResumo } from "@/features/diagnosticos/components/ResultadoResumo";
+import { RevisaoRespostas } from "@/features/diagnosticos/components/RevisaoRespostas";
 import { useCalcularResultadoMutation } from "@/features/diagnosticos/hooks/useCalcularResultadoMutation";
 import { useDiagnosticoQuery } from "@/features/diagnosticos/hooks/useDiagnosticoQuery";
 import { useFinalizarDiagnosticoMutation } from "@/features/diagnosticos/hooks/useFinalizarDiagnosticoMutation";
@@ -43,11 +46,14 @@ import type { Pergunta } from "@/features/diagnosticos/types/diagnostico.types";
  * não calcula nada (nem média, nem maturidade); só coleta respostas e
  * exibe o que o back-end retorna.
  *
- * EMPRESA responde uma pergunta por vez (PerguntaPasso, "Pergunta X de N");
- * CONSULTOR vê todas as áreas abertas, só leitura (AreaAccordion).
+ * EMPRESA responde uma pergunta por vez: painel "Seu progresso" à esquerda
+ * (DiagnosticoProgresso) e a pergunta à direita (PerguntaPasso); na última,
+ * vai pra revisão (RevisaoRespostas), de onde finaliza. CONSULTOR vê todas
+ * as áreas abertas, só leitura (AreaAccordion).
  */
 export function DiagnosticoDetalhePage() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const empresaId = searchParams.get("empresa") ?? undefined;
 
@@ -123,8 +129,11 @@ export function DiagnosticoDetalhePage() {
   const [expandedAreaIds, setExpandedAreaIds] = useState<Set<string>>(new Set());
   const [dirtyIds, setDirtyIds] = useState<Set<string>>(new Set());
   const [isSavingProgresso, setIsSavingProgresso] = useState(false);
-  const [progressoMessage, setProgressoMessage] = useState<string | null>(null);
   const [progressoError, setProgressoError] = useState<string | null>(null);
+  // EMPRESA: tela de revisão (lista de respostas + finalizar) no lugar da pergunta.
+  const [revisando, setRevisando] = useState(false);
+  // Acabou de finalizar nesta visita — mostra o aviso acima do resultado.
+  const [finalizadoAgora, setFinalizadoAgora] = useState(false);
   const [finalizarError, setFinalizarError] = useState<string | null>(null);
   const [isCheckingFinalizar, setIsCheckingFinalizar] = useState(false);
   const [confirmingFinalizar, setConfirmingFinalizar] = useState(false);
@@ -227,7 +236,6 @@ export function DiagnosticoDetalhePage() {
       return next;
     });
     setPerguntaError(perguntaId, null);
-    setProgressoMessage(null);
     setProgressoError(null);
     setDirtyIds((prev) => new Set(prev).add(perguntaId));
 
@@ -255,7 +263,6 @@ export function DiagnosticoDetalhePage() {
 
     setIsSavingProgresso(true);
     setProgressoError(null);
-    setProgressoMessage(null);
 
     const results = await Promise.allSettled(
       pendentes.map((perguntaId) =>
@@ -283,8 +290,19 @@ export function DiagnosticoDetalhePage() {
       return false;
     }
 
-    setProgressoMessage("Progresso salvo.");
     return true;
+  }
+
+  /** "Salvar e sair": garante que nada ficou sem gravar e volta pra lista (dá pra continuar depois). */
+  async function handleSalvarESair() {
+    const ok = await handleSalvarProgresso();
+    if (ok) navigate(ROUTES.diagnosticos);
+  }
+
+  function irParaPergunta(index: number) {
+    setRevisando(false);
+    setConfirmingFinalizar(false);
+    setCurrentIndex(index);
   }
 
   /**
@@ -373,6 +391,7 @@ export function DiagnosticoDetalhePage() {
     // e o botão "Calcular resultado" pra tentar de novo.
     try {
       await calcularResultadoMutation.mutateAsync(id);
+      setFinalizadoAgora(true);
     } catch (err) {
       setCalcularResultadoError(getErrorMessage(err, "Não foi possível calcular o resultado."));
     }
@@ -419,35 +438,54 @@ export function DiagnosticoDetalhePage() {
     return "idle";
   }
 
-  // Legenda 1-5: só pra perguntas ESCALA numéricas (sem descrição por nível).
-  // EMPRESA: olha a pergunta da tela; CONSULTOR: qualquer uma da lista.
+  // Legenda 1-5 acima das áreas: só CONSULTOR (na tela da EMPRESA ela fica
+  // dentro do card da pergunta, quando a pergunta é numérica).
   const isEscalaNumerica = (pergunta: Pergunta) => pergunta.tipo === "ESCALA" && (pergunta.opcoes ?? []).length === 0;
-  const mostrarLegenda = isConsultor
-    ? itens.some((item) => isEscalaNumerica(item.pergunta))
-    : Boolean(itemAtual && isEscalaNumerica(itemAtual.pergunta));
-  const qtdPendencias = pendencias?.length ?? 0;
-  const temPendencias = qtdPendencias > 0;
+  const mostrarLegenda = isConsultor && itens.some((item) => isEscalaNumerica(item.pergunta));
+  // Obrigatórias sem resposta pelo estado local (o back-end confere de novo ao finalizar).
+  const qtdObrigatoriasPendentes = itens.filter(
+    (item) => item.pergunta.obrigatoria && !respostas.has(item.pergunta.id),
+  ).length;
+  const indexAtual = itemAtual ? itens.indexOf(itemAtual) : 0;
+  const areaIndexAtual = itemAtual ? (areas ?? []).findIndex((area) => area.id === itemAtual.area.id) : 0;
 
   return (
     <AppLayout>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="font-display text-2xl text-ink-900">{diagnostico.nome}</h1>
-          <p className="mt-1 text-sm text-ink-600">
-            Empresa: {empresa ? empresa.nome_fantasia || empresa.razao_social : "—"}
-          </p>
-          {modeloNome && <p className="mt-0.5 text-sm text-ink-600">Modelo: {modeloNome}</p>}
-          {isConcluido && (
-            <p className="mt-0.5 text-sm text-ink-600">Concluído em: {formatDate(diagnostico.data_conclusao)}</p>
-          )}
-        </div>
+      <nav aria-label="Caminho" className="text-sm text-ink-500">
+        <Link to={ROUTES.diagnosticos} className="text-ink-700 transition-colors hover:text-ink-900">
+          Diagnósticos
+        </Link>
+        <span aria-hidden> / </span>
+        <span>{diagnostico.nome}</span>
+      </nav>
 
+      <div className="mt-2 flex flex-wrap items-center gap-3">
+        <h1 className="font-display text-3xl text-ink-900 [text-wrap:balance]">{diagnostico.nome}</h1>
         <Badge variant={DIAGNOSTICO_STATUS_VARIANTS[diagnostico.status]}>
           {DIAGNOSTICO_STATUS_LABELS[diagnostico.status]}
         </Badge>
       </div>
 
-      {!isConcluido && totalPerguntas > 0 && (
+      {isConsultor ? (
+        <>
+          <p className="mt-1 text-sm text-ink-600">
+            Empresa: {empresa ? empresa.nome_fantasia || empresa.razao_social : "—"}
+          </p>
+          {modeloNome && <p className="mt-0.5 text-sm text-ink-600">Modelo: {modeloNome}</p>}
+        </>
+      ) : (
+        !isConcluido && (
+          <p className="mt-1 text-sm text-ink-600">
+            {modeloNome ? `${modeloNome}. ` : ""}Responda uma pergunta por vez.
+          </p>
+        )
+      )}
+      {isConcluido && (
+        <p className="mt-0.5 text-sm text-ink-600">Concluído em: {formatDate(diagnostico.data_conclusao)}</p>
+      )}
+
+      {/* Barra de progresso no topo: só pro CONSULTOR (a EMPRESA tem o painel lateral). */}
+      {isConsultor && !isConcluido && totalPerguntas > 0 && (
         <div className="mt-4 max-w-md">
           <div className="flex items-center justify-between text-xs text-ink-600">
             <span>Progresso</span>
@@ -465,6 +503,10 @@ export function DiagnosticoDetalhePage() {
 
       {isConcluido ? (
         <div className="mt-6 space-y-6">
+          {finalizadoAgora && resultado && (
+            <SuccessMessage>Diagnóstico finalizado. O resultado foi calculado.</SuccessMessage>
+          )}
+
           {isLoadingResultado && <Loading label="Carregando resultado…" />}
 
           {isErrorResultado && !isLoadingResultado && (
@@ -538,20 +580,55 @@ export function DiagnosticoDetalhePage() {
               />
             ))}
 
-          {!isConsultor && itemAtual && (
-            <PerguntaPasso
-              area={itemAtual.area}
-              pergunta={itemAtual.pergunta}
-              index={itens.indexOf(itemAtual)}
-              total={totalPerguntas}
-              value={respostas.get(itemAtual.pergunta.id)}
-              onAnswer={(valor) => handleAnswer(itemAtual.pergunta, valor)}
-              status={statusDaPergunta(itemAtual.pergunta.id)}
-              error={perguntaErrors.get(itemAtual.pergunta.id)}
-              isMissing={missingIds.has(itemAtual.pergunta.id)}
-              onPrev={() => setCurrentIndex((index) => Math.max(index - 1, 0))}
-              onNext={() => setCurrentIndex((index) => Math.min(index + 1, totalPerguntas - 1))}
-            />
+          {!isConsultor && areas && areas.length > 0 && itemAtual && (
+            <div className="grid gap-6 lg:grid-cols-[17rem_minmax(0,1fr)] lg:items-start">
+              <DiagnosticoProgresso
+                areas={areas}
+                respostas={respostas}
+                perguntaAtualId={revisando ? undefined : itemAtual.pergunta.id}
+                missingIds={missingIds}
+                onSelect={irParaPergunta}
+                onRevisar={() => setRevisando(true)}
+                revisando={revisando}
+              />
+
+              {revisando ? (
+                <RevisaoRespostas
+                  areas={areas}
+                  respostas={respostas}
+                  onResponder={irParaPergunta}
+                  onVoltar={() => irParaPergunta(indexAtual)}
+                  qtdObrigatoriasPendentes={qtdObrigatoriasPendentes}
+                  onFinalizar={handleFinalizarClick}
+                  isVerificando={isCheckingFinalizar}
+                  confirmando={confirmingFinalizar}
+                  onConfirmar={handleConfirmarFinalizar}
+                  onCancelarConfirmacao={() => setConfirmingFinalizar(false)}
+                  isFinalizando={finalizarMutation.isPending || calcularResultadoMutation.isPending}
+                  erro={finalizarError ?? progressoError}
+                />
+              ) : (
+                <PerguntaPasso
+                  area={itemAtual.area}
+                  areaIndex={areaIndexAtual}
+                  totalAreas={areas.length}
+                  pergunta={itemAtual.pergunta}
+                  indexNaArea={itemAtual.area.perguntas.indexOf(itemAtual.pergunta)}
+                  value={respostas.get(itemAtual.pergunta.id)}
+                  onAnswer={(valor) => handleAnswer(itemAtual.pergunta, valor)}
+                  status={statusDaPergunta(itemAtual.pergunta.id)}
+                  error={perguntaErrors.get(itemAtual.pergunta.id)}
+                  isMissing={missingIds.has(itemAtual.pergunta.id)}
+                  hasPrev={indexAtual > 0}
+                  onPrev={() => setCurrentIndex(Math.max(indexAtual - 1, 0))}
+                  isLast={indexAtual >= totalPerguntas - 1}
+                  onNext={() => setCurrentIndex(Math.min(indexAtual + 1, totalPerguntas - 1))}
+                  onRevisar={() => setRevisando(true)}
+                  onSalvarESair={handleSalvarESair}
+                  isSaindo={isSavingProgresso}
+                />
+              )}
+            </div>
           )}
 
           {areas && areas.length > 0 && isConsultor && (
@@ -564,64 +641,23 @@ export function DiagnosticoDetalhePage() {
             </Card>
           )}
 
-          {areas && areas.length > 0 && !isConsultor && (
-            <Card className="p-6">
-              {confirmingFinalizar ? (
-                <div>
-                  <p className="text-sm font-medium text-ink-900">Finalizar diagnóstico?</p>
-                  <p className="mt-1 text-sm text-ink-600">
-                    Depois de finalizar não dá mais para alterar as respostas. O resultado é calculado em seguida.
-                  </p>
-                  <div className="mt-4 flex gap-3">
-                    <Button type="button" variant="secondary" onClick={() => setConfirmingFinalizar(false)}>
-                      Cancelar
-                    </Button>
-                    <Button
-                      type="button"
-                      onClick={handleConfirmarFinalizar}
-                      isLoading={finalizarMutation.isPending || calcularResultadoMutation.isPending}
-                    >
-                      Finalizar
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex flex-wrap items-center justify-between gap-4">
-                  <div>
-                    <p className="text-sm text-ink-700">
-                      {temPendencias
-                        ? `Ainda ${qtdPendencias === 1 ? "existe" : "existem"} ${qtdPendencias} pergunta${qtdPendencias === 1 ? "" : "s"} obrigatória${qtdPendencias === 1 ? "" : "s"} sem resposta.`
-                        : "Todas as perguntas foram respondidas."}
-                    </p>
-                    {dirtyIds.size > 0 && (
-                      <p className="mt-1 text-xs text-gold-600">
-                        {dirtyIds.size} resposta{dirtyIds.size === 1 ? "" : "s"} ainda não salva
-                        {dirtyIds.size === 1 ? "" : "s"}.
-                      </p>
-                    )}
-                    {progressoMessage && <SuccessMessage className="mt-2">{progressoMessage}</SuccessMessage>}
-                    {progressoError && <ErrorMessage className="mt-2">{progressoError}</ErrorMessage>}
-                    {finalizarError && <ErrorMessage className="mt-2">{finalizarError}</ErrorMessage>}
-                  </div>
+        </div>
+      )}
 
-                  <div className="flex gap-3">
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={handleSalvarProgresso}
-                      isLoading={isSavingProgresso}
-                      disabled={dirtyIds.size === 0}
-                    >
-                      Salvar progresso
-                    </Button>
-                    <Button type="button" onClick={handleFinalizarClick} isLoading={isCheckingFinalizar}>
-                      Finalizar diagnóstico
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </Card>
-          )}
+      {/* Só CONSULTOR: apontamentos ligados a este diagnóstico. */}
+      {isConsultor && (
+        <div className="mt-6">
+          <ApontamentosPanel
+            empresaId={diagnostico.empresa_id}
+            title="Apontamentos"
+            description="Observações registradas sobre este diagnóstico."
+            canManage
+            filtro={{ diagnostico_id: diagnostico.id }}
+            vinculoFixo={{ tipo: "DIAGNOSTICO", id: diagnostico.id, label: `Diagnóstico: ${diagnostico.nome}` }}
+            createLabel="Adicionar apontamento"
+            emptyMessage="Nenhum apontamento sobre este diagnóstico ainda."
+            pageSize={5}
+          />
         </div>
       )}
     </AppLayout>

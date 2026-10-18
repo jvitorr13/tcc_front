@@ -1,19 +1,20 @@
 import { z } from "zod";
 
-/**
- * Opção de texto de uma nota da escala. `valor` é a nota (vai como resposta); a ordem de
- * exibição é a posição na lista — o front não envia ordem. A API remove os
- * espaços das pontas da descrição, então validamos já "trimada".
- */
 /** Limite de texto por nível definido para a tela (a API aceitaria até 500). */
 export const OPCAO_DESCRICAO_MAX = 300;
+
+/**
+ * Descrição de um nível da escala. `valor` é a nota (vai como resposta);
+ * a ordem é a posição na lista — o front não envia ordem. A API remove os
+ * espaços das pontas, então validamos já "trimada". O "não pode ficar
+ * vazia" fica no superRefine da pergunta, pra mensagem citar o nível.
+ */
 
 export const opcaoSchema = z.object({
   valor: z.number({ message: "Escolha o valor" }).int("Use um número inteiro"),
   descricao: z
     .string()
     .trim()
-    .min(1, "Descreva este nível")
     .max(OPCAO_DESCRICAO_MAX, `Máximo de ${OPCAO_DESCRICAO_MAX} caracteres`),
 });
 
@@ -22,9 +23,9 @@ export const opcaoSchema = z.object({
  * expõe um campo "tipo" no formulário; `tipo: "ESCALA"` é fixado na hora de
  * montar o payload (ver CreateModeloPage), não faz parte deste schema.
  *
- * `opcoes` é opcional: [] = pergunta só com números. Se tiver alguma, as
- * mesmas regras da API: uma por nota de escala_min a escala_max, sem nota
- * fora da faixa nem repetida.
+ * `opcoes` é OBRIGATÓRIA: uma descrição não vazia para cada nota de
+ * escala_min a escala_max, sem nota fora da faixa nem repetida (mesmas
+ * regras da API, que também recusa o salvamento).
  */
 export const perguntaSchema = z
   .object({
@@ -40,10 +41,15 @@ export const perguntaSchema = z
     path: ["escala_max"],
   })
   .superRefine((data, ctx) => {
-    if (data.opcoes.length === 0) return;
-
     const vistos = new Set<number>();
     data.opcoes.forEach((opcao, index) => {
+      if (opcao.descricao.length === 0) {
+        ctx.addIssue({
+          code: "custom",
+          message: `Descreva o nível ${opcao.valor}`,
+          path: ["opcoes", index, "descricao"],
+        });
+      }
       if (opcao.valor < data.escala_min || opcao.valor > data.escala_max) {
         ctx.addIssue({
           code: "custom",

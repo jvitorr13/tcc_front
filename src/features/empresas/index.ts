@@ -9,6 +9,7 @@ export { empresasService } from "@/features/empresas/services/empresas.service";
 
 export { useEmpresasQuery } from "@/features/empresas/hooks/useEmpresasQuery";
 export { useEmpresaQuery } from "@/features/empresas/hooks/useEmpresaQuery";
+export { useEmpresasVisiveis } from "@/features/empresas/hooks/useEmpresasVisiveis";
 export { useCreateEmpresaMutation } from "@/features/empresas/hooks/useCreateEmpresaMutation";
 export { useUpdateEmpresaMutation } from "@/features/empresas/hooks/useUpdateEmpresaMutation";
 export { useDeleteEmpresaMutation } from "@/features/empresas/hooks/useDeleteEmpresaMutation";

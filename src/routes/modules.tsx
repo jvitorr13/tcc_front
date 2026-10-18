@@ -3,7 +3,7 @@ import {
   ClipboardList,
   Home,
   LayoutDashboard,
-  Settings,
+  NotebookPen,
   Target,
   TrendingUp,
   Users,
@@ -12,6 +12,7 @@ import type { ComponentType } from "react";
 
 import { ROUTES } from "@/constants/routes";
 
+import { ApontamentosListPage, EmpresaApontamentosPage } from "@/features/apontamentos";
 import { DashboardsListPage, EmpresaDashboardPage } from "@/features/dashboard";
 import { CreateDiagnosticoPage, DiagnosticoDetalhePage, DiagnosticosListPage } from "@/features/diagnosticos";
 import { CreateEmpresaPage, EditEmpresaPage, EmpresasListPage } from "@/features/empresas";
@@ -21,7 +22,6 @@ import { CreateIndicadorPage, IndicadorDetalhePage, IndicadoresListPage } from "
 import { CreatePlanoAcaoPage, PlanoAcaoDetalhePage, PlanosAcaoListPage } from "@/features/plano-acao";
 import { CreateModeloPage, ModelosListPage, NovaVersaoModeloPage } from "@/features/questionario";
 import { CreateUserPage, EditUserPage, ProfilePage, UsersListPage } from "@/features/users";
-import { ConfiguracoesPage } from "@/pages/ConfiguracoesPage";
 import { DashboardPage } from "@/pages/DashboardPage";
 
 export interface AppModule {
@@ -87,13 +87,27 @@ export const MODULES: AppModule[] = [
   { key: "empresas-novo", path: ROUTES.empresasNovo, element: CreateEmpresaPage, roles: ["CONSULTOR"] },
   { key: "empresas-editar", path: ROUTES.empresasEditar, element: EditEmpresaPage, roles: ["CONSULTOR"] },
   { key: "empresa-dashboard", path: ROUTES.empresaDashboard, element: EmpresaDashboardPage, roles: ["CONSULTOR"] },
+  // Apontamentos: só CONSULTOR gerencia. EMPRESA que abrir a URL é
+  // redirecionada pelo RoleRoute; ela lê os compartilhados na home ("/").
+  {
+    key: "empresa-apontamentos",
+    path: ROUTES.empresaApontamentos,
+    element: EmpresaApontamentosPage,
+    roles: ["CONSULTOR"],
+  },
 
   {
     key: "dashboards",
     path: ROUTES.dashboards,
     element: DashboardsListPage,
-    roles: ["CONSULTOR"],
-    menu: { label: "Dashboards", description: "Painéis de tarefas por empresa", icon: LayoutDashboard },
+    // Mesma rota pros dois perfis — DashboardsListPage decide: CONSULTOR
+    // escolhe a empresa; EMPRESA vê direto o dashboard da própria.
+    roles: "all",
+    menu: {
+      label: { CONSULTOR: "Dashboards", EMPRESA: "Dashboard" },
+      description: "Andamento das tarefas dos planos de ação",
+      icon: LayoutDashboard,
+    },
   },
 
   // Diagnósticos: MESMA rota pros dois perfis — DiagnosticosListPage decide
@@ -162,7 +176,8 @@ export const MODULES: AppModule[] = [
   // Indicadores: módulo pronto (tela + back-end), só sem entrada no menu
   // por pedido temporário — reativar é só acrescentar `menu` aqui.
   { key: "indicadores", path: ROUTES.indicadores, element: IndicadoresListPage, roles: "all" },
-  { key: "indicadores-novo", path: ROUTES.indicadoresNovo, element: CreateIndicadorPage, roles: "all" },
+  // Só CONSULTOR cria — EMPRESA só consulta os da própria empresa.
+  { key: "indicadores-novo", path: ROUTES.indicadoresNovo, element: CreateIndicadorPage, roles: ["CONSULTOR"] },
   { key: "indicador-detalhe", path: ROUTES.indicadorDetalhe, element: IndicadorDetalhePage, roles: "all" },
 
   // Evolução: MESMA rota pros dois perfis — EvolucoesListPage decide
@@ -187,12 +202,20 @@ export const MODULES: AppModule[] = [
 
   { key: "perfil", path: ROUTES.perfil, element: ProfilePage, roles: "all" },
 
+  // Apontamentos (no lugar do antigo "Configurações", que estava em
+  // construção): MESMA rota pros dois perfis — ApontamentosListPage decide.
+  // CONSULTOR escolhe a empresa e vai pra /empresas/:id/apontamentos;
+  // EMPRESA vê direto as observações compartilhadas com ela (só leitura).
   {
-    key: "configuracoes",
-    path: ROUTES.configuracoes,
-    element: ConfiguracoesPage,
+    key: "apontamentos",
+    path: ROUTES.apontamentos,
+    element: ApontamentosListPage,
     roles: "all",
-    menu: { label: "Configurações", description: "Em construção", icon: Settings },
+    menu: {
+      label: { CONSULTOR: "Apontamentos", EMPRESA: "Observações" },
+      description: "Observações registradas sobre as empresas",
+      icon: NotebookPen,
+    },
   },
 ];
 

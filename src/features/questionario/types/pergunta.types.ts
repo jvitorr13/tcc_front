@@ -15,7 +15,7 @@ export interface PerguntaConfig {
   obrigatoria: boolean;
   peso: number;
   ordem: number;
-  /** Sempre presente na leitura, já na ordem de exibição; [] = pergunta só com números. */
+  /** Uma descrição por nível, sempre presente na leitura ([] só em modelo antigo, a completar no editor). */
   opcoes: PerguntaOpcao[];
 }
 
@@ -46,8 +46,9 @@ export interface CreatePerguntaInput {
   obrigatoria: boolean;
   peso: number;
   /**
-   * Opcional, só em perguntas ESCALA. Ausente ou [] = só números. Se vier
-   * alguma, tem que ter exatamente uma por nota de escala_min a escala_max.
+   * Descrição de cada nível (perguntas ESCALA) — obrigatória: exatamente
+   * uma, não vazia, por nota de escala_min a escala_max. O back-end recusa
+   * o salvamento sem elas.
    */
-  opcoes?: CreatePerguntaOpcaoInput[];
+  opcoes: CreatePerguntaOpcaoInput[];
 }

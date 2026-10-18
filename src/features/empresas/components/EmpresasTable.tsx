@@ -1,10 +1,15 @@
-import { LayoutDashboard, Pencil, Trash2, TrendingUp } from "lucide-react";
+import { LayoutDashboard, NotebookPen, Pencil, Trash2, TrendingUp } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { empresaDashboardPath, empresaEditarPath, empresaEvolucaoPath } from "@/constants/routes";
+import {
+  empresaApontamentosPath,
+  empresaDashboardPath,
+  empresaEditarPath,
+  empresaEvolucaoPath,
+} from "@/constants/routes";
 
 import type { Empresa } from "@/features/empresas/types/empresa.types";
 
@@ -77,6 +82,14 @@ export function EmpresasTable({ empresas, onDelete, isDeleting }: EmpresasTableP
                         title="Evolução"
                       >
                         <TrendingUp size={15} />
+                      </Link>
+                      <Link
+                        to={empresaApontamentosPath(empresa.id)}
+                        className="flex size-8 items-center justify-center rounded-lg text-ink-600 transition-colors hover:bg-ink-900/5 hover:text-ink-900"
+                        aria-label={`Ver apontamentos de ${empresa.nome_fantasia || empresa.razao_social}`}
+                        title="Apontamentos"
+                      >
+                        <NotebookPen size={15} />
                       </Link>
                       <Link
                         to={empresaEditarPath(empresa.id)}

@@ -8,7 +8,15 @@ export { VariacaoBadge } from "@/features/evolucao/components/VariacaoBadge";
 export { evolucaoService } from "@/features/evolucao/services/evolucao.service";
 export { useEmpresaEvolucaoQuery } from "@/features/evolucao/hooks/useEmpresaEvolucaoQuery";
 
-export { NIVEL_MATURIDADE_CLASSES, NIVEL_MATURIDADE_LABELS } from "@/features/evolucao/constants/maturidade";
+export {
+  formatarNivelMaturidade,
+  getNivelMaturidade,
+  NIVEIS_MATURIDADE,
+  NIVEL_MATURIDADE_CLASSES,
+  NIVEL_MATURIDADE_LABELS,
+  nivelPorMedia,
+  TOTAL_NIVEIS_MATURIDADE,
+} from "@/features/evolucao/constants/maturidade";
 export { formatDataEvolucao } from "@/features/evolucao/utils/format-data-evolucao";
 
 export type {

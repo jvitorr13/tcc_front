@@ -8,6 +8,8 @@ export { CreateDiagnosticoForm } from "@/features/diagnosticos/components/Create
 export { LikertLegend } from "@/features/diagnosticos/components/LikertLegend";
 export { PerguntaField } from "@/features/diagnosticos/components/PerguntaField";
 export { PerguntaPasso } from "@/features/diagnosticos/components/PerguntaPasso";
+export { DiagnosticoProgresso } from "@/features/diagnosticos/components/DiagnosticoProgresso";
+export { RevisaoRespostas } from "@/features/diagnosticos/components/RevisaoRespostas";
 export { DiagnosticoAbertoCard } from "@/features/diagnosticos/components/DiagnosticoAbertoCard";
 export { DiagnosticoConcluidoItem } from "@/features/diagnosticos/components/DiagnosticoConcluidoItem";
 export { ResultadoResumo } from "@/features/diagnosticos/components/ResultadoResumo";

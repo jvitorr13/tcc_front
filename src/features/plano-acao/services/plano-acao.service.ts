@@ -22,7 +22,8 @@ import type {
  *   GET    /planos-acao/:id                                 -> PlanoAcao + tarefas: Tarefa[]
  *   PUT    /planos-acao/:id                                 { titulo?, descricao? } -> PlanoAcao (sem campo status)
  *   DELETE /planos-acao/:id                                 -> 204
- *   POST   /planos-acao/:id/tarefas                         { titulo, descricao?, responsavel, prazo?, prioridade } -> Tarefa
+ *   POST   /planos-acao/:id/tarefas                         { titulo, descricao?, responsavel_id, prazo?, prioridade } -> Tarefa
+ *          (responsavel_id = id de um usuário vinculado à empresa do plano)
  *   GET    /planos-acao/:id/tarefas                         -> Tarefa[]
  *   PUT    /planos-acao/:id/tarefas/:tarefaId                { status?, observacao?, ... } -> Tarefa
  *   DELETE /planos-acao/:id/tarefas/:tarefaId                -> 204

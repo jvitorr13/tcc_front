@@ -11,8 +11,10 @@ import type {
 } from "@/features/indicadores/types/indicador.types";
 
 /**
- * Contrato de API (internal/indicador) — rotas sem autenticação, envelope
- * padrão { success, data } / { success: false, error }:
+ * Contrato de API (internal/indicador) — com Bearer token, envelope padrão
+ * { success, data } / { success: false, error }. Escrita (criar, editar,
+ * apagar indicador e registrar medição) só CONSULTOR; EMPRESA só lê os da
+ * própria empresa:
  *
  *   POST   /indicadores                     { empresa_id, nome, unidade, periodicidade, descricao?, meta? } -> Indicador
  *   GET    /indicadores?empresa_id=          empresa_id OBRIGATÓRIO -> Indicador[]

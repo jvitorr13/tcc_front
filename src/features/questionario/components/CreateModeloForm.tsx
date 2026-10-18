@@ -45,7 +45,15 @@ export interface CreateModeloFormProps {
   submitLabel?: string;
 }
 
-const NOVA_PERGUNTA = { texto: "", escala_min: 1, escala_max: 5, obrigatoria: true, peso: 1, opcoes: [] };
+// Já nasce com uma linha de descrição por nível (1 a 5), todas vazias e obrigatórias.
+const NOVA_PERGUNTA = {
+  texto: "",
+  escala_min: 1,
+  escala_max: 5,
+  obrigatoria: true,
+  peso: 1,
+  opcoes: [1, 2, 3, 4, 5].map((valor) => ({ valor, descricao: "" })),
+};
 const NOVA_AREA = { nome: "", descricao: "", perguntas: [NOVA_PERGUNTA] };
 
 /**
@@ -356,12 +364,13 @@ function rangeNotas(min: number, max: number): number[] {
 }
 
 /**
- * "Descrever cada nível": opcional. Ligado, gera uma linha fixa por nota
- * (de Mínimo a Máximo, em ordem crescente) pra escrever o texto que o
- * cliente vê naquele nível; desligado, a pergunta fica só com números
- * (opcoes = []). As linhas acompanham a escala: mudar Mínimo/Máximo
- * recria a lista mantendo o texto das notas que continuam existindo — por
- * isso nunca falta nem sobra nível, e a nota de cada linha não é editável.
+ * Descrição de cada nível — OBRIGATÓRIA: uma linha fixa por nota, de
+ * Mínimo a Máximo em ordem crescente, sempre visível. É o texto que a
+ * empresa lê pra escolher o nível; o número é só a posição na escala. As
+ * linhas acompanham a escala: mudar Mínimo/Máximo recria a lista mantendo
+ * o texto das notas que continuam existindo (nunca falta nem sobra nível).
+ * Uma versão antiga sem descrições chega aqui com as linhas vazias, pra
+ * completar antes de salvar.
  */
 function OpcoesFieldset({ control, register, errors, areaIndex, perguntaIndex, disabled }: OpcoesFieldsetProps) {
   const pergunta = `areas.${areaIndex}.perguntas.${perguntaIndex}` as const;
@@ -372,94 +381,74 @@ function OpcoesFieldset({ control, register, errors, areaIndex, perguntaIndex, d
   });
 
   const notas = rangeNotas(escalaMin, escalaMax);
-  const descreverNiveis = fields.length > 0;
 
-  // Mantém uma linha por nota quando a escala muda (ou quando uma versão
-  // antiga chega com as opções fora de ordem). Só regrava se a sequência de
-  // notas for diferente — senão entraria em loop com o próprio replace.
+  // Uma linha por nota. Só regrava se a sequência de notas mudou — senão
+  // entraria em loop com o próprio replace. Escala inválida enquanto se
+  // digita: mantém as linhas como estão.
   const sequenciaAtual = (opcoes ?? []).map((opcao) => opcao.valor).join(",");
   const sequenciaEsperada = notas.join(",");
   useEffect(() => {
-    if (!descreverNiveis || notas.length === 0 || sequenciaAtual === sequenciaEsperada) return;
+    if (notas.length === 0 || sequenciaAtual === sequenciaEsperada) return;
     const textoPorNota = new Map((opcoes ?? []).map((opcao) => [opcao.valor, opcao.descricao]));
     replace(notas.map((nota) => ({ valor: nota, descricao: textoPorNota.get(nota) ?? "" })));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [descreverNiveis, sequenciaAtual, sequenciaEsperada]);
-
-  function toggle(checked: boolean) {
-    replace(checked ? notas.map((nota) => ({ valor: nota, descricao: "" })) : []);
-  }
+  }, [sequenciaAtual, sequenciaEsperada]);
 
   const opcoesErrors = errors.areas?.[areaIndex]?.perguntas?.[perguntaIndex]?.opcoes;
   const rootError = opcoesErrors?.message ?? opcoesErrors?.root?.message;
-  const toggleId = `${pergunta}.descrever-niveis`;
 
   return (
-    <div className="mt-3 border-t border-ink-900/8 pt-3">
-      <label htmlFor={toggleId} className="flex w-fit items-center gap-2 text-sm font-medium text-ink-800">
-        <input
-          id={toggleId}
-          type="checkbox"
-          className="size-4 rounded border-ink-900/25 accent-ink-900"
-          checked={descreverNiveis}
-          onChange={(event) => toggle(event.target.checked)}
-          disabled={disabled || (!descreverNiveis && notas.length === 0)}
-        />
-        Descrever cada nível
-      </label>
+    <fieldset className="mt-3 border-t border-ink-900/8 pt-3">
+      <legend className="sr-only">Descrição de cada nível</legend>
+      <p className="text-sm font-medium text-ink-800">Descrição de cada nível</p>
+      <p className="mt-0.5 text-xs text-ink-500">
+        A empresa escolhe pela descrição. Texto de até {OPCAO_DESCRICAO_MAX} caracteres; todos os níveis são
+        obrigatórios.
+      </p>
 
-      {!descreverNiveis && (
-        <p className="mt-1 text-xs text-ink-500">
-          {notas.length > 0
-            ? `Sem descrição, o cliente vê só os números de ${escalaMin} a ${escalaMax}.`
-            : "Defina uma escala válida para poder descrever os níveis."}
-        </p>
+      {notas.length === 0 && (
+        <p className="mt-2 text-xs text-ink-500">Defina uma escala válida para descrever os níveis.</p>
       )}
 
-      {descreverNiveis && (
-        <>
-          <ol className="mt-3 space-y-2">
-            {fields.map((field, index) => {
-              const opcaoErrors = opcoesErrors?.[index];
-              const texto = opcoes?.[index]?.descricao ?? "";
-              const id = `${pergunta}.opcoes.${index}.descricao`;
-              return (
-                <li key={field.id} className="flex items-start gap-3">
-                  <span
-                    aria-hidden
-                    className="flex size-11 shrink-0 items-center justify-center rounded-lg border border-ink-900/15 bg-white text-sm font-semibold text-ink-900"
-                  >
-                    {opcoes?.[index]?.valor}
+      <ol className="mt-3 space-y-2">
+        {fields.map((field, index) => {
+          const opcaoErrors = opcoesErrors?.[index];
+          const texto = opcoes?.[index]?.descricao ?? "";
+          const nivel = opcoes?.[index]?.valor;
+          const id = `${pergunta}.opcoes.${index}.descricao`;
+          return (
+            <li key={field.id} className="flex items-start gap-3">
+              <label
+                htmlFor={id}
+                className="flex size-11 shrink-0 items-center justify-center rounded-lg border border-ink-900/15 bg-white text-sm font-semibold text-ink-900"
+              >
+                <span className="sr-only">Nível </span>
+                {nivel}
+              </label>
+              <div className="min-w-0 flex-1">
+                <Input
+                  id={id}
+                  placeholder={`Como é a empresa no nível ${nivel}?`}
+                  maxLength={OPCAO_DESCRICAO_MAX}
+                  hasError={Boolean(opcaoErrors?.descricao)}
+                  aria-invalid={Boolean(opcaoErrors?.descricao)}
+                  aria-required
+                  disabled={disabled}
+                  {...register(`${pergunta}.opcoes.${index}.descricao`)}
+                />
+                <div className="mt-1 flex items-start justify-between gap-3">
+                  <ErrorMessage className="mt-0">{opcaoErrors?.descricao?.message}</ErrorMessage>
+                  <span className="ml-auto shrink-0 text-xs tabular-nums text-ink-500">
+                    {texto.length}/{OPCAO_DESCRICAO_MAX}
                   </span>
-                  <div className="min-w-0 flex-1">
-                    <Input
-                      id={id}
-                      aria-label={`Descrição do nível ${opcoes?.[index]?.valor}`}
-                      placeholder="Ex: Controla em planilha, atualizada toda semana."
-                      maxLength={OPCAO_DESCRICAO_MAX}
-                      hasError={Boolean(opcaoErrors?.descricao)}
-                      disabled={disabled}
-                      {...register(`${pergunta}.opcoes.${index}.descricao`)}
-                    />
-                    <div className="mt-1 flex items-start justify-between gap-3">
-                      <ErrorMessage className="mt-0">{opcaoErrors?.descricao?.message}</ErrorMessage>
-                      <span className="ml-auto shrink-0 text-xs tabular-nums text-ink-500">
-                        {texto.length}/{OPCAO_DESCRICAO_MAX}
-                      </span>
-                    </div>
-                  </div>
-                </li>
-              );
-            })}
-          </ol>
-
-          <p className="mt-2 text-xs text-ink-500">
-            Texto de até {OPCAO_DESCRICAO_MAX} caracteres. Todos os níveis precisam estar preenchidos.
-          </p>
-        </>
-      )}
+                </div>
+              </div>
+            </li>
+          );
+        })}
+      </ol>
 
       {rootError && <ErrorMessage>{rootError}</ErrorMessage>}
-    </div>
+    </fieldset>
   );
 }

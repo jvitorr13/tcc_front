@@ -11,3 +11,13 @@ export function formatDecimal(value: number | null | undefined, digits = 2): str
   if (value === null || value === undefined) return "—";
   return value.toLocaleString("pt-BR", { minimumFractionDigits: digits, maximumFractionDigits: digits });
 }
+
+/** Formata uma data ISO como "dd/mm/aaaa hh:mm" (horário local). Retorna "—" se vazia/inválida. */
+export function formatDateTime(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "—";
+  const data = date.toLocaleDateString("pt-BR");
+  const hora = date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  return `${data} ${hora}`;
+}

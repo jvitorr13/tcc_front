@@ -1,5 +1,5 @@
 import { AlertTriangle, ArrowLeft, Pencil, Plus, Trash2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 
 import { getErrorMessage } from "@/lib/get-error-message";
@@ -12,10 +12,11 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Modal } from "@/components/ui/Modal";
 import { AppLayout } from "@/layouts/AppLayout";
+import { useAuth } from "@/hooks/useAuth";
 import { ROUTES } from "@/constants/routes";
 import { formatDate, formatDecimal } from "@/utils/format";
 
-import { useEmpresasQuery } from "@/features/empresas";
+import { useEmpresaQuery } from "@/features/empresas";
 
 import { EditIndicadorForm } from "@/features/indicadores/components/EditIndicadorForm";
 import { IndicadorEvolutionChart } from "@/features/indicadores/components/IndicadorEvolutionChart";
@@ -39,6 +40,8 @@ interface IndicadorDetalheLocationState {
  * exibidos, nunca calculados aqui) + gráfico de evolução + histórico +
  * registrar nova medição. `situacao`/`valor_atual` sempre vêm do back-end
  * (GET /indicadores/:id); o histórico vem de GET /indicadores/:id/valores.
+ *
+ * Editar, excluir e registrar medição: só CONSULTOR. EMPRESA só consulta.
  */
 export function IndicadorDetalhePage() {
   const { id } = useParams<{ id: string }>();
@@ -47,11 +50,10 @@ export function IndicadorDetalhePage() {
 
   const { data: indicador, isLoading, isError, error } = useIndicadorQuery(id);
   const { data: valores, isLoading: isLoadingValores } = useIndicadorValoresQuery(id);
-  const { data: empresas } = useEmpresasQuery();
-  const empresa = useMemo(
-    () => (empresas ?? []).find((item) => item.id === indicador?.empresa_id),
-    [empresas, indicador],
-  );
+  const { user } = useAuth();
+  const isConsultor = user?.tipo_usuario === "CONSULTOR";
+  // GET /empresas/{id} vale pros dois perfis (GET /empresas é só CONSULTOR).
+  const { data: empresa } = useEmpresaQuery(indicador?.empresa_id);
 
   const updateMutation = useUpdateIndicadorMutation(id ?? "");
   const deleteMutation = useDeleteIndicadorMutation();
@@ -154,7 +156,7 @@ export function IndicadorDetalhePage() {
             {indicador.situacao === "ABAIXO_DA_META" && <AlertTriangle size={11} />}
             {SITUACAO_LABELS[indicador.situacao]}
           </Badge>
-          {!isEditing && !confirmingDelete && (
+          {isConsultor && !isEditing && !confirmingDelete && (
             <>
               <Button
                 type="button"
@@ -246,10 +248,12 @@ export function IndicadorDetalhePage() {
       <Card className="mt-6 p-6">
         <div className="flex items-center justify-between gap-3">
           <h2 className="font-display text-lg text-ink-900">Evolução</h2>
-          <Button type="button" size="sm" onClick={() => setIsRegistrandoMedicao(true)}>
-            <Plus size={15} />
-            Registrar nova medição
-          </Button>
+          {isConsultor && (
+            <Button type="button" size="sm" onClick={() => setIsRegistrandoMedicao(true)}>
+              <Plus size={15} />
+              Registrar nova medição
+            </Button>
+          )}
         </div>
 
         <Modal

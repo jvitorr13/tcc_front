@@ -5,11 +5,17 @@ import { AppLayout } from "@/layouts/AppLayout";
 import { useAuth } from "@/hooks/useAuth";
 import { isRoleAllowed, MODULES, resolveMenuLabel, resolveMenuTo } from "@/routes/modules";
 
+import { ApontamentosPanel } from "@/features/apontamentos";
+
 /**
  * Rota inicial ("/") — cada card é um atalho pra um módulo do menu,
  * derivado da mesma tabela central de rotas (ver routes/modules.ts) e já
  * filtrado pelo perfil de quem está logado. "Início" fica de fora (é a
  * própria página atual).
+ *
+ * EMPRESA também vê aqui as "Observações do consultor": os apontamentos
+ * compartilhados com ela, só leitura. Não filtra nada — a API já devolve
+ * só o que a empresa pode ver.
  */
 export function DashboardPage() {
   const { user } = useAuth();
@@ -39,6 +45,18 @@ export function DashboardPage() {
           );
         })}
       </div>
+
+      {user?.tipo_usuario === "EMPRESA" && user.empresa_id && (
+        <div className="mt-8">
+          <ApontamentosPanel
+            empresaId={user.empresa_id}
+            title="Observações do consultor"
+            canManage={false}
+            emptyMessage="Seu consultor ainda não compartilhou observações."
+            pageSize={5}
+          />
+        </div>
+      )}
     </AppLayout>
   );
 }

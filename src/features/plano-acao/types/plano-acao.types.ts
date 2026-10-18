@@ -24,7 +24,14 @@ export interface Tarefa {
   plano_acao_id: string;
   titulo: string;
   descricao: string;
-  responsavel: string;
+  /** Usuário EMPRESA (da empresa do plano) responsável pela tarefa. */
+  responsavel_id: string | null;
+  /**
+   * Nome do responsável, se o back-end devolver. Tarefas antigas (antes do
+   * vínculo por id) só têm este texto livre. A tela prefere o nome do
+   * usuário achado por responsavel_id e cai aqui quando não acha.
+   */
+  responsavel?: string;
   prazo: string | null;
   prioridade: TarefaPrioridade;
   status: TarefaStatus;
@@ -60,7 +67,8 @@ export interface PlanosAcaoFilters {
 export interface CreateTarefaInput {
   titulo: string;
   descricao?: string;
-  responsavel: string;
+  /** id de um usuário vinculado à empresa do plano de ação. */
+  responsavel_id: string;
   prazo?: string;
   prioridade: TarefaPrioridade;
 }

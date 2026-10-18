@@ -21,7 +21,7 @@ export function formToAreasInput(areas: CreateModeloFormData["areas"]): CreateAr
       escala_max: pergunta.escala_max,
       obrigatoria: pergunta.obrigatoria,
       peso: pergunta.peso,
-      // Já "trimadas" pelo schema; [] = pergunta só com números.
+      // Uma descrição por nível (obrigatórias), já "trimadas" pelo schema.
       opcoes: pergunta.opcoes.map((opcao) => ({ valor: opcao.valor, descricao: opcao.descricao })),
     })),
   }));

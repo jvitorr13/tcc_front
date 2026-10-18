@@ -61,7 +61,7 @@ export function EvolucaoChart({ diagnosticos }: EvolucaoChartProps) {
             cx={xFor(index)}
             cy={yFor(item.media_geral)}
             r={5.5}
-            className={NIVEL_MATURIDADE_DOT_CLASSES[item.nivel_maturidade]}
+            className={NIVEL_MATURIDADE_DOT_CLASSES[item.nivel_maturidade] ?? "fill-ink-400"}
           />
         ))}
       </svg>

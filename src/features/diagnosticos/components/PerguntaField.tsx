@@ -1,12 +1,11 @@
 import { AlertCircle } from "lucide-react";
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 
 import { ErrorMessage } from "@/components/feedback/ErrorMessage";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
 import { cn } from "@/utils/cn";
 
-import { LIKERT_LABELS } from "@/features/diagnosticos/constants/likert";
 import type { Pergunta } from "@/features/diagnosticos/types/diagnostico.types";
 
 export interface PerguntaFieldProps {
@@ -28,15 +27,13 @@ export interface PerguntaFieldProps {
   readOnly?: boolean;
 }
 
-const OPCAO_BASE =
-  "rounded-lg border text-sm transition-colors disabled:opacity-100";
 
 /**
  * Uma pergunta + o campo de resposta certo pro `tipo`:
- *  - ESCALA com `opcoes`: cada nível com a nota e a descrição, na ordem recebida;
- *    clicar envia o `valor` da opção;
- *  - ESCALA sem `opcoes`: botões de escala_min a escala_max;
- *  - SIM_NAO: botões Sim/Não -> "SIM" | "NAO";
+ *  - ESCALA: um cartão por nível, de escala_min a escala_max em ordem
+ *    crescente, com o número e a descrição cadastrada; escolher envia o
+ *    número do nível. (Dado antigo sem descrição: mostra só o número.)
+ *  - SIM_NAO: Sim/Não -> "SIM" | "NAO";
  *  - MULTIPLA_ESCOLHA: campo de texto; TEXTO: textarea (texto livre).
  * Escolhas (escala/sim-não) salvam no clique; texto salva ao sair do campo
  * (blur), pra não mandar um POST por tecla. Único componente pras duas
@@ -67,7 +64,7 @@ export function PerguntaField({ pergunta, value, onAnswer, isSaving, isMissing, 
       </p>
 
       <div className="mt-3">
-        <Campo pergunta={pergunta} value={value} onAnswer={onAnswer} isSaving={isSaving} readOnly={readOnly} />
+        <CampoResposta pergunta={pergunta} value={value} onAnswer={onAnswer} isSaving={isSaving} readOnly={readOnly} />
       </div>
 
       {error && <ErrorMessage>{error}</ErrorMessage>}
@@ -75,40 +72,93 @@ export function PerguntaField({ pergunta, value, onAnswer, isSaving, isMissing, 
   );
 }
 
-type CampoProps = Pick<PerguntaFieldProps, "pergunta" | "value" | "onAnswer" | "isSaving" | "readOnly">;
+type CampoProps = Pick<PerguntaFieldProps, "pergunta" | "value" | "onAnswer" | "isSaving" | "readOnly"> & {
+  /** Linhas maiores pros níveis da escala — usado na tela de uma pergunta por vez (PerguntaPasso). */
+  large?: boolean;
+};
 
-function Campo({ pergunta, value, onAnswer, isSaving, readOnly }: CampoProps) {
+interface OpcaoRadioProps {
+  name: string;
+  id: string;
+  valor: string;
+  checked: boolean;
+  onPick?: (valor: string) => void;
+  readOnly?: boolean;
+  className?: string;
+  children: ReactNode;
+}
+
+/**
+ * Uma opção = `input type="radio"` de verdade + `label` (o cartão inteiro
+ * é clicável). Teclado: Tab entra no grupo, setas trocam a opção — o
+ * comportamento nativo do radio. O input fica visualmente oculto; o foco
+ * aparece como anel no cartão.
+ */
+function OpcaoRadio({ name, id, valor, checked, onPick, readOnly, className, children }: OpcaoRadioProps) {
+  return (
+    <label
+      htmlFor={id}
+      className={cn(
+        "relative flex rounded-lg border text-sm transition-colors",
+        "has-[input:focus-visible]:ring-2 has-[input:focus-visible]:ring-gold-500/60 has-[input:focus-visible]:ring-offset-1",
+        readOnly ? "cursor-default" : "cursor-pointer",
+        checked
+          ? "border-ink-900 bg-ink-900/[0.04] text-ink-900 ring-1 ring-ink-900"
+          : "border-ink-900/12 bg-surface text-ink-700",
+        !readOnly && !checked && "hover:border-ink-900/25 hover:bg-ink-900/[0.02]",
+        className,
+      )}
+    >
+      <input
+        type="radio"
+        id={id}
+        name={name}
+        value={valor}
+        checked={checked}
+        onChange={() => onPick?.(valor)}
+        disabled={readOnly}
+        className="sr-only"
+      />
+      {children}
+    </label>
+  );
+}
+
+/**
+ * Só o controle de resposta (sem o enunciado), pra quem monta o próprio
+ * cabeçalho da pergunta — ver PerguntaPasso. Mesmas regras de PerguntaField.
+ */
+export function CampoResposta({ pergunta, value, onAnswer, readOnly, large }: CampoProps) {
   const pick = readOnly ? undefined : onAnswer;
+  const name = `pergunta-${pergunta.id}`;
 
   switch (pergunta.tipo) {
     case "SIM_NAO":
       return (
-        <div className="flex gap-2" role="radiogroup" aria-label={pergunta.texto}>
-          {(
-            [
-              ["SIM", "Sim"],
-              ["NAO", "Não"],
-            ] as const
-          ).map(([valor, label]) => (
-            <button
-              key={valor}
-              type="button"
-              role="radio"
-              aria-checked={value === valor}
-              onClick={pick ? () => pick(valor) : undefined}
-              disabled={readOnly || isSaving}
-              className={cn(
-                OPCAO_BASE,
-                "h-10 min-w-20 px-4 font-medium",
-                readOnly ? "disabled:cursor-default" : "disabled:cursor-wait",
-                value === valor ? "border-ink-900 bg-ink-900 text-white" : "border-ink-900/15 text-ink-700",
-                !readOnly && value !== valor && "hover:bg-ink-900/5",
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <fieldset>
+          <legend className="sr-only">{pergunta.texto}</legend>
+          <div className="flex flex-wrap gap-2">
+            {(
+              [
+                ["SIM", "Sim"],
+                ["NAO", "Não"],
+              ] as const
+            ).map(([valor, label]) => (
+              <OpcaoRadio
+                key={valor}
+                name={name}
+                id={`${name}-${valor}`}
+                valor={valor}
+                checked={value === valor}
+                onPick={pick}
+                readOnly={readOnly}
+                className={cn("items-center justify-center font-medium", large ? "h-12 min-w-28 px-5" : "h-10 min-w-20 px-4")}
+              >
+                {label}
+              </OpcaoRadio>
+            ))}
+          </div>
+        </fieldset>
       );
 
     case "TEXTO":
@@ -116,78 +166,66 @@ function Campo({ pergunta, value, onAnswer, isSaving, readOnly }: CampoProps) {
       return <CampoTexto pergunta={pergunta} value={value} onAnswer={pick} readOnly={readOnly} />;
 
     case "ESCALA":
-    default:
-      if (pergunta.opcoes?.length > 0) {
-        return (
-          <div className="grid gap-2" role="radiogroup" aria-label={pergunta.texto}>
-            {pergunta.opcoes.map((opcao) => {
-              const selected = value === String(opcao.valor);
+    default: {
+      // Níveis de escala_min a escala_max (sem fixar 5), em ordem crescente;
+      // a descrição de cada um vem de `opcoes`, casada pelo valor. Sem
+      // escala informada, usa os próprios valores das opções.
+      const descricaoPorNivel = new Map((pergunta.opcoes ?? []).map((opcao) => [opcao.valor, opcao.descricao]));
+      const niveis =
+        pergunta.escala_min != null && pergunta.escala_max != null && pergunta.escala_max >= pergunta.escala_min
+          ? Array.from(
+              { length: pergunta.escala_max - pergunta.escala_min + 1 },
+              (_, index) => pergunta.escala_min! + index,
+            )
+          : [...descricaoPorNivel.keys()].sort((a, b) => a - b);
+
+      return (
+        <fieldset>
+          <legend className="sr-only">{pergunta.texto}</legend>
+          <div className={cn("grid", large ? "gap-2.5" : "gap-2")}>
+            {niveis.map((nivel) => {
+              const valor = String(nivel);
+              const checked = value === valor;
+              const descricao = descricaoPorNivel.get(nivel)?.trim();
               return (
-                <button
-                  key={opcao.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={selected}
-                  onClick={pick ? () => pick(String(opcao.valor)) : undefined}
-                  disabled={readOnly || isSaving}
+                <OpcaoRadio
+                  key={nivel}
+                  name={name}
+                  id={`${name}-${nivel}`}
+                  valor={valor}
+                  checked={checked}
+                  onPick={pick}
+                  readOnly={readOnly}
                   className={cn(
-                    OPCAO_BASE,
-                    "flex items-start gap-3 px-3.5 py-2.5 text-left",
-                    readOnly ? "disabled:cursor-default" : "disabled:cursor-wait",
-                    selected ? "border-ink-900 bg-ink-900/[0.04] text-ink-900" : "border-ink-900/15 text-ink-700",
-                    !readOnly && !selected && "hover:bg-ink-900/5",
+                    "items-center text-left",
+                    large ? "gap-4 rounded-xl px-4 py-4 text-[15px]" : "gap-3 px-3.5 py-2.5",
                   )}
                 >
                   <span
-                    aria-hidden
+                    aria-hidden={Boolean(descricao)}
                     className={cn(
-                      "flex size-8 shrink-0 items-center justify-center rounded-md border text-sm font-semibold",
-                      selected ? "border-ink-900 bg-ink-900 text-white" : "border-ink-900/15 text-ink-700",
+                      "flex shrink-0 items-center justify-center rounded-md border text-sm font-semibold",
+                      large ? "size-10" : "size-8",
+                      checked ? "border-ink-900 bg-ink-900 text-white" : "border-ink-900/15 bg-surface text-ink-900",
                     )}
                   >
-                    {opcao.valor}
+                    {nivel}
                   </span>
-                  <span className="self-center">{opcao.descricao}</span>
-                </button>
+                  {descricao ? (
+                    <span>
+                      <span className="sr-only">Nível {nivel}: </span>
+                      {descricao}
+                    </span>
+                  ) : (
+                    <span className="sr-only">Nível {nivel}</span>
+                  )}
+                </OpcaoRadio>
               );
             })}
           </div>
-        );
-      }
-
-      if (pergunta.escala_min == null || pergunta.escala_max == null) return null;
-      return (
-        <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={pergunta.texto}>
-          {Array.from(
-            { length: pergunta.escala_max - pergunta.escala_min + 1 },
-            (_, index) => pergunta.escala_min! + index,
-          ).map((nota) => {
-            const label = LIKERT_LABELS[nota];
-            const selected = value === String(nota);
-            return (
-              <button
-                key={nota}
-                type="button"
-                role="radio"
-                aria-checked={selected}
-                aria-label={label ? `${nota} - ${label}` : String(nota)}
-                title={label}
-                onClick={pick ? () => pick(String(nota)) : undefined}
-                disabled={readOnly || isSaving}
-                className={cn(
-                  OPCAO_BASE,
-                  "flex size-10 items-center justify-center font-medium",
-                  readOnly ? "disabled:cursor-default" : "disabled:cursor-wait",
-                  selected ? "border-ink-900 bg-ink-900 text-white" : "border-ink-900/15 text-ink-700",
-                  !readOnly && !selected && "hover:bg-ink-900/5",
-                )}
-              >
-                {nota}
-              </button>
-            );
-          })}
-        </div>
+        </fieldset>
       );
+    }
   }
 }
 

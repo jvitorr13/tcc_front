@@ -22,6 +22,8 @@ export const ROUTES = {
   empresasEditar: "/empresas/:id/editar",
   empresaDashboard: "/empresas/:id/dashboard",
   empresaEvolucao: "/empresas/:id/evolucao",
+  // Apontamentos ficam sempre dentro de uma empresa (só CONSULTOR) — sem item no menu.
+  empresaApontamentos: "/empresas/:id/apontamentos",
   // Mesma rota pros dois perfis — CONSULTOR vê a listagem completa,
   // EMPRESA é resolvido sozinho pro próprio diagnóstico (sempre
   // user.empresa_id) e redirecionado direto pra diagnosticoDetalhe. Ver
@@ -46,7 +48,9 @@ export const ROUTES = {
   indicadoresNovo: "/indicadores/novo",
   indicadorDetalhe: "/indicadores/:id",
   evolucao: "/evolucao",
-  configuracoes: "/configuracoes",
+  // Menu "Apontamentos" (substituiu Configurações): escolha da empresa pro
+  // CONSULTOR, observações compartilhadas pra EMPRESA.
+  apontamentos: "/apontamentos",
 
   // Preparado para os próximos módulos do sistema de consultoria — ainda
   // sem entrada no menu nem página própria.
@@ -73,6 +77,11 @@ export function empresaDashboardPath(id: string): string {
 /** Resolve o path real da evolução de diagnósticos de uma empresa a partir do :id da rota. */
 export function empresaEvolucaoPath(id: string): string {
   return `/empresas/${id}/evolucao`;
+}
+
+/** Resolve o path real dos apontamentos de uma empresa a partir do :id da rota. */
+export function empresaApontamentosPath(id: string): string {
+  return `/empresas/${id}/apontamentos`;
 }
 
 /**

@@ -5,6 +5,8 @@ import { Badge } from "@/components/ui/Badge";
 import { diagnosticoDetalhePath } from "@/constants/routes";
 import { formatDate, formatDecimal } from "@/utils/format";
 
+import { formatarNivelMaturidade } from "@/features/evolucao/constants/maturidade";
+
 import { DIAGNOSTICO_STATUS_LABELS, DIAGNOSTICO_STATUS_VARIANTS } from "@/features/diagnosticos/constants/status";
 import type { Diagnostico } from "@/features/diagnosticos/types/diagnostico.types";
 
@@ -47,7 +49,7 @@ export function DiagnosticosTable({ diagnosticos, empresaNameById, modeloNameByI
               </td>
               <td className="py-3 pr-4 text-ink-600">
                 {diagnostico.nivel_maturidade
-                  ? `${diagnostico.nivel_maturidade}${
+                  ? `${formatarNivelMaturidade(diagnostico.nivel_maturidade)}${
                       diagnostico.media_geral != null ? ` (${formatDecimal(diagnostico.media_geral)})` : ""
                     }`
                   : "—"}

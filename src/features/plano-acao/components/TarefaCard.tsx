@@ -14,6 +14,8 @@ import type { Tarefa, TarefaStatus, UpdateTarefaInput } from "@/features/plano-a
 
 export interface TarefaCardProps {
   tarefa: Tarefa;
+  /** Nome do usuário de responsavel_id, achado pela página; sem ele cai em tarefa.responsavel. */
+  responsavelNome?: string;
   onUpdate: (input: UpdateTarefaInput) => Promise<void>;
   isUpdating: boolean;
   onDelete: () => void;
@@ -50,7 +52,7 @@ const PRIORIDADE_VARIANTS: Record<Tarefa["prioridade"], "neutral" | "gold" | "da
  * ver PUT /planos-acao/:id/tarefas/:tarefaId). `atrasada` só é lida do
  * back-end, nunca recalculada aqui.
  */
-export function TarefaCard({ tarefa, onUpdate, isUpdating, onDelete, isDeleting }: TarefaCardProps) {
+export function TarefaCard({ tarefa, responsavelNome, onUpdate, isUpdating, onDelete, isDeleting }: TarefaCardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [draftStatus, setDraftStatus] = useState<TarefaStatus>(tarefa.status);
@@ -114,7 +116,7 @@ export function TarefaCard({ tarefa, onUpdate, isUpdating, onDelete, isDeleting 
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs text-ink-600">
-        <span>Responsável: {tarefa.responsavel}</span>
+        <span>Responsável: {responsavelNome ?? (tarefa.responsavel || "—")}</span>
         {tarefa.prazo && <span>Prazo: {formatDate(tarefa.prazo)}</span>}
         <Badge variant={PRIORIDADE_VARIANTS[tarefa.prioridade]}>{PRIORIDADE_LABELS[tarefa.prioridade]}</Badge>
         {!isEditing && <Badge variant={STATUS_VARIANTS[tarefa.status]}>{STATUS_LABELS[tarefa.status]}</Badge>}

@@ -1,4 +1,4 @@
-import { ArrowLeft, Pencil, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, ChevronDown, NotebookPen, Pencil, Plus, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 
@@ -12,13 +12,16 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Modal } from "@/components/ui/Modal";
 import { AppLayout } from "@/layouts/AppLayout";
+import { useAuth } from "@/hooks/useAuth";
 import { ROUTES, diagnosticoDetalhePath } from "@/constants/routes";
 import { formatDate } from "@/utils/format";
 
+import { ApontamentosPanel } from "@/features/apontamentos";
 import { useDiagnosticosQuery } from "@/features/diagnosticos";
-import { useEmpresasQuery } from "@/features/empresas";
+import { useEmpresaQuery } from "@/features/empresas";
+import { useUsersQuery } from "@/features/users";
 
-import { CreateTarefaForm } from "@/features/plano-acao/components/CreateTarefaForm";
+import { CreateTarefaForm, type ResponsavelOption } from "@/features/plano-acao/components/CreateTarefaForm";
 import { EditPlanoAcaoForm } from "@/features/plano-acao/components/EditPlanoAcaoForm";
 import { TarefaCard } from "@/features/plano-acao/components/TarefaCard";
 import { useCreateTarefaMutation } from "@/features/plano-acao/hooks/useCreateTarefaMutation";
@@ -58,12 +61,32 @@ export function PlanoAcaoDetalhePage() {
   const location = useLocation();
 
   const { data: plano, isLoading, isError, error } = usePlanoAcaoQuery(id);
-  const { data: empresas } = useEmpresasQuery();
+  // GET /empresas/{id} vale pros dois perfis (EMPRESA só a própria). Antes
+  // usava GET /empresas, que é só CONSULTOR — por isso a EMPRESA via "—".
+  const { data: empresa } = useEmpresaQuery(plano?.empresa_id);
   const { data: diagnosticos } = useDiagnosticosQuery(plano ? [plano.empresa_id] : []);
 
-  const empresa = useMemo(
-    () => (empresas ?? []).find((item) => item.id === plano?.empresa_id),
-    [empresas, plano],
+  // Responsável da tarefa = uma pessoa vinculada à empresa do plano. Não há
+  // filtro por empresa em GET /users, então busca os usuários EMPRESA ativos
+  // e filtra por empresa_id aqui. GET /users é só CONSULTOR: para a EMPRESA,
+  // a única pessoa que o front conhece da própria empresa é ela mesma.
+  const { user } = useAuth();
+  const isConsultor = user?.tipo_usuario === "CONSULTOR";
+  const { data: usuariosEmpresa, isLoading: isLoadingUsuarios } = useUsersQuery(
+    { tipo_usuario: "EMPRESA", ativo: true },
+    { enabled: isConsultor },
+  );
+  const responsaveis = useMemo<ResponsavelOption[]>(() => {
+    if (!plano) return [];
+    if (!isConsultor) return user ? [{ id: user.id, nome: user.nome, email: user.email }] : [];
+    return (usuariosEmpresa ?? [])
+      .filter((pessoa) => pessoa.empresa_id === plano.empresa_id)
+      .map((pessoa) => ({ id: pessoa.id, nome: pessoa.nome, email: pessoa.email }))
+      .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+  }, [plano, isConsultor, user, usuariosEmpresa]);
+  const nomeResponsavelPorId = useMemo(
+    () => new Map(responsaveis.map((pessoa) => [pessoa.id, pessoa.nome])),
+    [responsaveis],
   );
   const diagnostico = useMemo(
     () => (diagnosticos ?? []).find((item) => item.id === plano?.diagnostico_id),
@@ -85,6 +108,8 @@ export function PlanoAcaoDetalhePage() {
   const [updatingTarefaId, setUpdatingTarefaId] = useState<string | null>(null);
   const [deletingTarefaId, setDeletingTarefaId] = useState<string | null>(null);
   const [tarefaActionError, setTarefaActionError] = useState<string | null>(null);
+  // Tarefa com a seção "Apontamentos" aberta (uma por vez; só CONSULTOR).
+  const [apontamentosTarefaId, setApontamentosTarefaId] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(
     () => (location.state as PlanoAcaoDetalheLocationState | null)?.successMessage ?? null,
   );
@@ -120,7 +145,7 @@ export function PlanoAcaoDetalhePage() {
       await createTarefaMutation.mutateAsync({
         titulo: data.titulo,
         descricao: data.descricao || undefined,
-        responsavel: data.responsavel,
+        responsavel_id: data.responsavel_id,
         prazo: data.prazo || undefined,
         prioridade: data.prioridade,
       });
@@ -300,6 +325,8 @@ export function PlanoAcaoDetalhePage() {
           title="Nova Tarefa"
         >
           <CreateTarefaForm
+            responsaveis={responsaveis}
+            isLoadingResponsaveis={isConsultor && isLoadingUsuarios}
             onSubmit={handleCreateTarefa}
             onCancel={() => {
               setIsAddingTarefa(false);
@@ -316,16 +343,54 @@ export function PlanoAcaoDetalhePage() {
           <p className="mt-4 py-6 text-center text-sm text-ink-500">Nenhuma tarefa cadastrada ainda.</p>
         ) : (
           <div className="mt-4 space-y-3">
-            {plano.tarefas.map((tarefa) => (
-              <TarefaCard
-                key={tarefa.id}
-                tarefa={tarefa}
-                onUpdate={(input) => handleUpdateTarefa(tarefa.id, input)}
-                isUpdating={updatingTarefaId === tarefa.id}
-                onDelete={() => handleDeleteTarefa(tarefa.id)}
-                isDeleting={deletingTarefaId === tarefa.id}
-              />
-            ))}
+            {plano.tarefas.map((tarefa) => {
+              const apontamentosAbertos = apontamentosTarefaId === tarefa.id;
+              return (
+                <div key={tarefa.id}>
+                  <TarefaCard
+                    tarefa={tarefa}
+                    responsavelNome={
+                      tarefa.responsavel_id ? nomeResponsavelPorId.get(tarefa.responsavel_id) : undefined
+                    }
+                    onUpdate={(input) => handleUpdateTarefa(tarefa.id, input)}
+                    isUpdating={updatingTarefaId === tarefa.id}
+                    onDelete={() => handleDeleteTarefa(tarefa.id)}
+                    isDeleting={deletingTarefaId === tarefa.id}
+                  />
+                  {isConsultor && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setApontamentosTarefaId(apontamentosAbertos ? null : tarefa.id)}
+                        aria-expanded={apontamentosAbertos}
+                        className="mt-1.5 inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-medium text-ink-600 transition-colors hover:bg-ink-900/5 hover:text-ink-900"
+                      >
+                        <NotebookPen size={13} />
+                        Apontamentos
+                        <ChevronDown
+                          size={13}
+                          className={apontamentosAbertos ? "rotate-180 transition-transform" : "transition-transform"}
+                        />
+                      </button>
+                      {apontamentosAbertos && (
+                        <div className="mt-2">
+                          <ApontamentosPanel
+                            empresaId={plano.empresa_id}
+                            title="Apontamentos da tarefa"
+                            canManage
+                            filtro={{ tarefa_id: tarefa.id }}
+                            vinculoFixo={{ tipo: "TAREFA", id: tarefa.id, label: `Tarefa: ${tarefa.titulo}` }}
+                            createLabel="Adicionar apontamento"
+                            emptyMessage="Nenhum apontamento sobre esta tarefa ainda."
+                            pageSize={5}
+                          />
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </Card>

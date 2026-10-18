@@ -19,7 +19,7 @@ import { AppLayout } from "@/layouts/AppLayout";
 import { ROUTES } from "@/constants/routes";
 
 import { useDiagnosticosQuery } from "@/features/diagnosticos";
-import { useEmpresasQuery } from "@/features/empresas";
+import { useEmpresasVisiveis } from "@/features/empresas";
 
 import { PlanosAcaoTable } from "@/features/plano-acao/components/PlanosAcaoTable";
 import { usePlanosAcaoQuery } from "@/features/plano-acao/hooks/usePlanosAcaoQuery";
@@ -81,15 +81,17 @@ export function PlanosAcaoListPage() {
 
   const activeFilterCount = (empresaFilter ? 1 : 0) + (diagnosticoFilter ? 1 : 0) + (statusFilter ? 1 : 0);
 
-  const { data: empresas, isLoading: isLoadingEmpresas } = useEmpresasQuery();
+  // CONSULTOR: todas as empresas. EMPRESA: só a própria, via GET /empresas/{id}
+  // (antes usava GET /empresas, que dá 403 pra ela — a lista e o nome sumiam).
+  const { empresas, empresaIds, isLoading: isLoadingEmpresas } = useEmpresasVisiveis();
 
   // Diagnósticos só existem pra popular o filtro/nome na tabela — GET
   // /diagnosticos exige empresa_id, então busca por empresa e junta (ver
   // useDiagnosticosQuery, mesmo hook usado em DiagnosticosListPage).
   const empresaIdsParaDiagnosticos = useMemo(() => {
     if (empresaFilter) return [empresaFilter];
-    return (empresas ?? []).map((empresa) => empresa.id);
-  }, [empresaFilter, empresas]);
+    return empresaIds;
+  }, [empresaFilter, empresaIds]);
   const { data: diagnosticos } = useDiagnosticosQuery(empresaIdsParaDiagnosticos);
 
   // diagnostico_id sozinho já satisfaz a exigência do back-end (1 request).
@@ -98,8 +100,8 @@ export function PlanosAcaoListPage() {
   const planosFilterSets = useMemo<PlanosAcaoFilters[]>(() => {
     if (diagnosticoFilter) return [{ diagnostico_id: diagnosticoFilter, empresa_id: empresaFilter || undefined }];
     if (empresaFilter) return [{ empresa_id: empresaFilter }];
-    return (empresas ?? []).map((empresa) => ({ empresa_id: empresa.id }));
-  }, [empresaFilter, diagnosticoFilter, empresas]);
+    return empresaIds.map((empresaId) => ({ empresa_id: empresaId }));
+  }, [empresaFilter, diagnosticoFilter, empresaIds]);
 
   const {
     data: planos,
@@ -111,7 +113,7 @@ export function PlanosAcaoListPage() {
 
   const empresaNameById = useMemo(() => {
     const map = new Map<string, string>();
-    for (const empresa of empresas ?? []) map.set(empresa.id, empresa.nome_fantasia || empresa.razao_social);
+    for (const empresa of empresas) map.set(empresa.id, empresa.nome_fantasia || empresa.razao_social);
     return map;
   }, [empresas]);
 
@@ -184,7 +186,7 @@ export function PlanosAcaoListPage() {
               }}
             >
               <option value="">Todas</option>
-              {(empresas ?? []).map((empresa) => (
+              {empresas.map((empresa) => (
                 <option key={empresa.id} value={empresa.id}>
                   {empresa.nome_fantasia || empresa.razao_social}
                 </option>

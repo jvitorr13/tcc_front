@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/Card";
 import { AppLayout } from "@/layouts/AppLayout";
 import { useAuth } from "@/hooks/useAuth";
 
-import { useEmpresasQuery } from "@/features/empresas";
+import { useEmpresaQuery } from "@/features/empresas";
 
 import { ChangePasswordForm } from "@/features/users/components/ChangePasswordForm";
 import { useChangePasswordMutation } from "@/features/users/hooks/useChangePasswordMutation";
@@ -27,8 +27,8 @@ const TIPO_USUARIO_LABELS: Record<string, string> = {
  */
 export function ProfilePage() {
   const { user } = useAuth();
-  const { data: empresas } = useEmpresasQuery();
-  const empresa = empresas?.find((item) => item.id === user?.empresa_id);
+  // GET /empresas/{id}: funciona pra EMPRESA (só a própria). GET /empresas é só CONSULTOR.
+  const { data: empresa } = useEmpresaQuery(user?.empresa_id);
 
   const changePasswordMutation = useChangePasswordMutation();
   const [passwordError, setPasswordError] = useState<string | null>(null);

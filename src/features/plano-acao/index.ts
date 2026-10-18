@@ -12,6 +12,7 @@ export { planoAcaoService } from "@/features/plano-acao/services/plano-acao.serv
 export { usePlanosAcaoQuery } from "@/features/plano-acao/hooks/usePlanosAcaoQuery";
 export { usePlanoAcaoQuery } from "@/features/plano-acao/hooks/usePlanoAcaoQuery";
 export { usePlanosTarefasCount } from "@/features/plano-acao/hooks/usePlanosTarefasCount";
+export { useTarefasDaEmpresa } from "@/features/plano-acao/hooks/useTarefasDaEmpresa";
 export { useCreatePlanoAcaoMutation } from "@/features/plano-acao/hooks/useCreatePlanoAcaoMutation";
 export { useUpdatePlanoAcaoMutation } from "@/features/plano-acao/hooks/useUpdatePlanoAcaoMutation";
 export { useDeletePlanoAcaoMutation } from "@/features/plano-acao/hooks/useDeletePlanoAcaoMutation";

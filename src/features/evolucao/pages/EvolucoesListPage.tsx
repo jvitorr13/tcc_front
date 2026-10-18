@@ -31,7 +31,8 @@ export function EvolucoesListPage() {
   const { user } = useAuth();
   const isEmpresa = user?.tipo_usuario === "EMPRESA";
 
-  const { data: empresas, isLoading, isError, error } = useEmpresasQuery();
+  // A lista de empresas só serve pro CONSULTOR (GET /empresas dá 403 pra EMPRESA).
+  const { data: empresas, isLoading, isError, error } = useEmpresasQuery({ enabled: !isEmpresa });
   const [search, setSearch] = useState("");
 
   if (isEmpresa) {
