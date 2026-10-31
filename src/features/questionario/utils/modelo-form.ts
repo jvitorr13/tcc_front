@@ -19,7 +19,8 @@ export function formToAreasInput(areas: CreateModeloFormData["areas"]): CreateAr
       tipo: "ESCALA",
       escala_min: pergunta.escala_min,
       escala_max: pergunta.escala_max,
-      obrigatoria: pergunta.obrigatoria,
+      // Toda pergunta é obrigatória — o campo não aparece mais no editor.
+      obrigatoria: true,
       peso: pergunta.peso,
       // Uma descrição por nível (obrigatórias), já "trimadas" pelo schema.
       opcoes: pergunta.opcoes.map((opcao) => ({ valor: opcao.valor, descricao: opcao.descricao })),

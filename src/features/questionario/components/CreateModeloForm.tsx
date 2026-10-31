@@ -321,26 +321,8 @@ function PerguntaFieldset({ control, register, errors, areaIndex, perguntaIndex,
           />
           <ErrorMessage>{perguntaErrors?.escala_max?.message}</ErrorMessage>
         </div>
-        <div className="w-24">
-          <Label htmlFor={`${textoId}-peso`}>Peso</Label>
-          <Input
-            id={`${textoId}-peso`}
-            type="number"
-            step="0.5"
-            hasError={Boolean(perguntaErrors?.peso)}
-            disabled={disabled}
-            {...register(`areas.${areaIndex}.perguntas.${perguntaIndex}.peso`, { valueAsNumber: true })}
-          />
-        </div>
-        <label className="flex items-center gap-2 pt-7 pb-2.5 text-sm text-ink-700">
-          <input
-            type="checkbox"
-            className="size-4 rounded border-ink-900/25 accent-ink-900"
-            disabled={disabled}
-            {...register(`areas.${areaIndex}.perguntas.${perguntaIndex}.obrigatoria`)}
-          />
-          Obrigatória
-        </label>
+        {/* Peso e "Obrigatória" ocultos: toda pergunta vai como obrigatória
+            (formToAreasInput) e o peso segue o padrão 1 ou o já salvo. */}
       </div>
 
       <OpcoesFieldset

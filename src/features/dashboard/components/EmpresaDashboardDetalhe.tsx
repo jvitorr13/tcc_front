@@ -10,6 +10,7 @@ import { cn } from "@/utils/cn";
 import { formatDecimal } from "@/utils/format";
 
 import { StatusDistributionBar } from "@/features/dashboard/components/StatusDistributionBar";
+import { TarefasAtrasadasCard } from "@/features/dashboard/components/TarefasAtrasadasCard";
 import { useEmpresaDashboardQuery } from "@/features/dashboard/hooks/useEmpresaDashboardQuery";
 
 export interface EmpresaDashboardDetalheProps {
@@ -90,6 +91,8 @@ export function EmpresaDashboardDetalhe({ empresaId, subtitulo, voltar }: Empres
               <StatusDistributionBar distribuicao={data.distribuicao_por_status} total={data.total_tarefas} />
             </div>
           </Card>
+
+          <TarefasAtrasadasCard tarefas={data.lista_atrasadas} total={data.tarefas_atrasadas} />
         </div>
       )}
     </>
