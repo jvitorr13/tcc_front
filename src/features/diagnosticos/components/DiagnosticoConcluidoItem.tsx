@@ -38,7 +38,7 @@ export function DiagnosticoConcluidoItem({ diagnostico }: DiagnosticoConcluidoIt
             <span className="font-display text-2xl tabular-nums text-ink-900">
               {formatDecimal(resultado.media_geral)}
             </span>
-            <MaturidadeBadge nivel={resultado.nivel_maturidade} />
+            <MaturidadeBadge nivel={resultado.nivel_maturidade} nome={resultado.nivel_maturidade_nome} />
           </>
         )}
 

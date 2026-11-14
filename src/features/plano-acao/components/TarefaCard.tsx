@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/Label";
 import { Select } from "@/components/ui/Select";
 import { Textarea } from "@/components/ui/Textarea";
 import { cn } from "@/utils/cn";
-import { formatDate } from "@/utils/format";
+import { formatDateOnly } from "@/utils/format";
 
 import type { Tarefa, TarefaStatus, UpdateTarefaInput } from "@/features/plano-acao/types/plano-acao.types";
 
@@ -117,7 +117,7 @@ export function TarefaCard({ tarefa, responsavelNome, onUpdate, isUpdating, onDe
 
       <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-xs text-ink-600">
         <span>Responsável: {responsavelNome ?? (tarefa.responsavel || "—")}</span>
-        {tarefa.prazo && <span>Prazo: {formatDate(tarefa.prazo)}</span>}
+        {tarefa.prazo && <span>Prazo: {formatDateOnly(tarefa.prazo)}</span>}
         <Badge variant={PRIORIDADE_VARIANTS[tarefa.prioridade]}>{PRIORIDADE_LABELS[tarefa.prioridade]}</Badge>
         {!isEditing && <Badge variant={STATUS_VARIANTS[tarefa.status]}>{STATUS_LABELS[tarefa.status]}</Badge>}
       </div>

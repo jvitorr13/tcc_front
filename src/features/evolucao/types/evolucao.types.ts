@@ -9,6 +9,9 @@ export type NivelMaturidade = "INICIAL" | "GERENCIADO" | "PADRONIZADO" | "PREVIS
 export interface EvolucaoAreaMedia {
   nome: string;
   media: number;
+  /** Combinado com o back, ainda não implementado. */
+  nivel_maturidade?: NivelMaturidade;
+  nivel_maturidade_nome?: string;
 }
 
 export interface EvolucaoDiagnostico {
@@ -18,6 +21,8 @@ export interface EvolucaoDiagnostico {
   data_finalizacao: string;
   media_geral: number;
   nivel_maturidade: NivelMaturidade;
+  /** Ex: "Previsível". Combinado com o back, ainda não implementado — fallback na tabela local. */
+  nivel_maturidade_nome?: string;
   areas: EvolucaoAreaMedia[];
 }
 

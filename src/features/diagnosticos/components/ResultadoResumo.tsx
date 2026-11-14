@@ -40,7 +40,9 @@ export function ResultadoResumo({ resultado }: ResultadoResumoProps) {
 
         <div className="mt-3 flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
           <p className="font-display text-3xl text-ink-900">
-            {info ? `Nível ${info.nivel} - ${info.label}` : resultado.nivel_maturidade}
+            {info
+              ? `Nível ${info.nivel} - ${resultado.nivel_maturidade_nome || info.label}`
+              : resultado.nivel_maturidade_nome || resultado.nivel_maturidade}
           </p>
           <p className="text-sm text-ink-600">
             Média <span className="font-semibold tabular-nums text-ink-900">{formatDecimal(resultado.media_geral)}</span>{" "}
@@ -77,7 +79,11 @@ export function ResultadoResumo({ resultado }: ResultadoResumoProps) {
               <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
                 <span className="text-ink-700">{area.area_nome}</span>
                 <span className="flex items-center gap-2">
-                  <MaturidadeBadge nivel={nivelPorMedia(area.media)} />
+                  {/* Nível da área vindo da API; nivelPorMedia só enquanto o back não manda. */}
+                  <MaturidadeBadge
+                    nivel={area.nivel_maturidade ?? nivelPorMedia(area.media)}
+                    nome={area.nivel_maturidade_nome}
+                  />
                   <span className="font-medium tabular-nums text-ink-900">{formatDecimal(area.media)}</span>
                 </span>
               </div>

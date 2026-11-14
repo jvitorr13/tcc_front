@@ -1,4 +1,4 @@
-import { ArrowRight, Target } from "lucide-react";
+import { ArrowRight, Eye, Target } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
@@ -103,13 +103,17 @@ export function DiagnosticoDetalhePage() {
   );
   const jaTemPlanoDeAcao = (planosDoDiagnostico ?? []).length > 0;
 
+  // Perguntas + respostas: a EMPRESA só precisa enquanto responde; o
+  // CONSULTOR vê sempre (inclusive depois de concluído), só leitura.
+  const carregarPerguntas = !isConcluido || isConsultor;
+
   const {
     data: areas,
     isLoading: isLoadingPerguntas,
     isError: isErrorPerguntas,
     error: perguntasError,
-  } = usePerguntasQuery(!isConcluido ? id : undefined);
-  const { data: respostasSalvas } = useRespostasQuery(!isConcluido ? id : undefined);
+  } = usePerguntasQuery(carregarPerguntas ? id : undefined);
+  const { data: respostasSalvas } = useRespostasQuery(carregarPerguntas ? id : undefined);
   const { data: pendencias, refetch: refetchPendencias } = usePendenciasQuery(!isConcluido ? id : undefined);
   const {
     data: resultado,
@@ -449,6 +453,42 @@ export function DiagnosticoDetalhePage() {
   const indexAtual = itemAtual ? itens.indexOf(itemAtual) : 0;
   const areaIndexAtual = itemAtual ? (areas ?? []).findIndex((area) => area.id === itemAtual.area.id) : 0;
 
+  // CONSULTOR: todas as perguntas do diagnóstico, só visualização — sem
+  // onAnswer, e handleAnswer também recusa. Usado antes e depois de concluir.
+  const perguntasSomenteLeitura = isConsultor && (
+    <>
+      {isLoadingPerguntas && <Loading label="Carregando perguntas…" />}
+
+      {isErrorPerguntas && (
+        <ErrorMessage>{getErrorMessage(perguntasError, "Não foi possível carregar as perguntas.")}</ErrorMessage>
+      )}
+
+      {areas && areas.length === 0 && (
+        <p className="text-sm text-ink-500">Este modelo ainda não tem perguntas cadastradas.</p>
+      )}
+
+      {areas && areas.length > 0 && (
+        <p className="flex items-center gap-2 text-sm text-ink-500">
+          <Eye size={15} className="shrink-0" />
+          Somente visualização: as respostas são da empresa e não podem ser alteradas aqui.
+        </p>
+      )}
+
+      {mostrarLegenda && <LikertLegend />}
+
+      {areas?.map((area) => (
+        <AreaAccordion
+          key={area.id}
+          area={area}
+          respostas={respostas}
+          expanded={expandedAreaIds.has(area.id)}
+          onToggle={() => toggleArea(area.id)}
+          readOnly
+        />
+      ))}
+    </>
+  );
+
   return (
     <AppLayout>
       <nav aria-label="Caminho" className="text-sm text-ink-500">
@@ -551,34 +591,27 @@ export function DiagnosticoDetalhePage() {
               </Link>
             </Card>
           )}
+
+          {isConsultor && (
+            <section className="space-y-4">
+              <h2 className="font-display text-xl text-ink-900">Perguntas e respostas</h2>
+              {perguntasSomenteLeitura}
+            </section>
+          )}
         </div>
       ) : (
         <div className="mt-6 space-y-6">
-          {isLoadingPerguntas && <Loading label="Carregando perguntas…" />}
+          {perguntasSomenteLeitura}
 
-          {isErrorPerguntas && (
+          {!isConsultor && isLoadingPerguntas && <Loading label="Carregando perguntas…" />}
+
+          {!isConsultor && isErrorPerguntas && (
             <ErrorMessage>{getErrorMessage(perguntasError, "Não foi possível carregar as perguntas.")}</ErrorMessage>
           )}
 
-          {areas && areas.length === 0 && (
+          {!isConsultor && areas && areas.length === 0 && (
             <p className="text-sm text-ink-500">Este modelo ainda não tem perguntas cadastradas.</p>
           )}
-
-          {mostrarLegenda && <LikertLegend />}
-
-          {isConsultor &&
-            areas?.map((area) => (
-              <AreaAccordion
-                key={area.id}
-                area={area}
-                respostas={respostas}
-                expanded={expandedAreaIds.has(area.id)}
-                onToggle={() => toggleArea(area.id)}
-                missingIds={missingIds}
-                errorsByPergunta={perguntaErrors}
-                readOnly
-              />
-            ))}
 
           {!isConsultor && areas && areas.length > 0 && itemAtual && (
             <div className="grid gap-6 lg:grid-cols-[17rem_minmax(0,1fr)] lg:items-start">

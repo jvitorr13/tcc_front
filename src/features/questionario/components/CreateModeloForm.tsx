@@ -322,7 +322,7 @@ function PerguntaFieldset({ control, register, errors, areaIndex, perguntaIndex,
           <ErrorMessage>{perguntaErrors?.escala_max?.message}</ErrorMessage>
         </div>
         {/* Peso e "Obrigatória" ocultos: toda pergunta vai como obrigatória
-            (formToAreasInput) e o peso segue o padrão 1 ou o já salvo. */}
+            e com peso 1 (formToAreasInput). */}
       </div>
 
       <OpcoesFieldset

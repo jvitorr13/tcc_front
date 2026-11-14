@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { planoAcaoDetalhePath } from "@/constants/routes";
+import { formatDateOnly } from "@/utils/format";
 
 import type { TarefaAtrasada } from "@/features/dashboard/types/dashboard.types";
 import type { TarefaPrioridade } from "@/features/plano-acao/types/plano-acao.types";
@@ -27,12 +28,6 @@ const PRIORIDADE_VARIANTS: Record<TarefaPrioridade, "neutral" | "gold" | "danger
 };
 
 const plural = (n: number, singular: string, pluralForm: string) => `${n} ${n === 1 ? singular : pluralForm}`;
-
-/** "2026-10-20" -> "20/10/2026" direto na string: new Date() leria como UTC e viraria 19/10 no Brasil. */
-function formatPrazo(prazo: string): string {
-  const [ano, mes, dia] = prazo.split("-");
-  return ano && mes && dia ? `${dia}/${mes}/${ano}` : "—";
-}
 
 /**
  * Seção "Tarefas atrasadas" do dashboard. Lista, ordem, dias de atraso e
@@ -94,7 +89,7 @@ export function TarefasAtrasadasCard({ tarefas, total }: TarefasAtrasadasCardPro
                     )}
                   </td>
                   <td className="py-3.5 pr-4 text-ink-700">{tarefa.responsavel_nome || "—"}</td>
-                  <td className="py-3.5 pr-4 text-ink-700">{formatPrazo(tarefa.prazo)}</td>
+                  <td className="py-3.5 pr-4 text-ink-700">{formatDateOnly(tarefa.prazo)}</td>
                   <td
                     className="py-3.5 pr-4 font-semibold text-danger-600"
                     title={`${plural(tarefa.dias_atraso, "dia", "dias")} de atraso`}

@@ -10,6 +10,7 @@ import { SuccessMessage } from "@/components/feedback/SuccessMessage";
 import { Card } from "@/components/ui/Card";
 import { AppLayout } from "@/layouts/AppLayout";
 import { ROUTES } from "@/constants/routes";
+import { ordenarMaisRecentes } from "@/utils/ordenar";
 
 import { ModelosTable } from "@/features/questionario/components/ModelosTable";
 import { useAtivarVersaoMutation } from "@/features/questionario/hooks/useAtivarVersaoMutation";
@@ -89,7 +90,7 @@ export function ModelosListPage() {
 
         {!isLoading && !isError && (modelos ?? []).length > 0 && (
           <ModelosTable
-            modelos={modelos ?? []}
+            modelos={ordenarMaisRecentes(modelos ?? [])}
             onAtivar={handleAtivar}
             isAtivando={(versaoId) => ativandoVersaoId === versaoId && ativarMutation.isPending}
           />

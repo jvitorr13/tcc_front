@@ -117,6 +117,9 @@ export interface ResultadoPorArea {
   area_id: string;
   area_nome: string;
   media: number;
+  /** Combinado com o back, ainda não implementado — enquanto faltar, o front usa nivelPorMedia. */
+  nivel_maturidade?: NivelMaturidade;
+  nivel_maturidade_nome?: string;
 }
 
 /** POST (calcula e grava) e GET (já gravado) /diagnosticos/:id/resultado. */
@@ -124,6 +127,8 @@ export interface ResultadoDiagnostico {
   diagnostico_id: string;
   media_geral: number;
   nivel_maturidade: NivelMaturidade;
+  /** Ex: "Previsível". Combinado com o back, ainda não implementado — fallback na tabela local. */
+  nivel_maturidade_nome?: string;
   data_calculo: string;
   areas: ResultadoPorArea[];
 }

@@ -7,6 +7,8 @@ import type { NivelMaturidade } from "@/features/evolucao/types/evolucao.types";
 export interface MaturidadeBadgeProps {
   /** Código vindo da API (INICIAL, GERENCIADO, PADRONIZADO, PREVISIVEL, OTIMIZADO). */
   nivel: NivelMaturidade | string;
+  /** `nivel_maturidade_nome` da API — quando vier, é o texto exibido (o código só escolhe a cor). */
+  nome?: string | null;
   /** Mostra "Nível 3 - Padronizado" em vez de só "Padronizado". */
   comNumero?: boolean;
   className?: string;
@@ -19,11 +21,13 @@ export interface MaturidadeBadgeProps {
  * já mescla className internamente com cn()). Código que o front não
  * conhece aparece cru, em cinza, em vez de um selo vazio.
  */
-export function MaturidadeBadge({ nivel, comNumero, className }: MaturidadeBadgeProps) {
+export function MaturidadeBadge({ nivel, nome, comNumero, className }: MaturidadeBadgeProps) {
   const info = getNivelMaturidade(nivel);
+  // Nome da API primeiro; a tabela local é só o fallback enquanto o back não manda.
+  const label = nome || info?.label || nivel;
   return (
     <Badge variant="neutral" className={cn(info && NIVEL_MATURIDADE_CLASSES[nivel as NivelMaturidade], className)}>
-      {info ? (comNumero ? `Nível ${info.nivel} - ${info.label}` : info.label) : nivel}
+      {comNumero && info ? `Nível ${info.nivel} - ${label}` : label}
     </Badge>
   );
 }

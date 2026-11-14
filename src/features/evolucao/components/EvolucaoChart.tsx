@@ -72,7 +72,7 @@ export function EvolucaoChart({ diagnosticos }: EvolucaoChartProps) {
             <p className="text-xs text-ink-500">{formatDataEvolucao(item.data_finalizacao)}</p>
             <div className="mt-1 flex items-center gap-2">
               <p className="font-display text-xl text-ink-900">{formatDecimal(item.media_geral)}</p>
-              <MaturidadeBadge nivel={item.nivel_maturidade} />
+              <MaturidadeBadge nivel={item.nivel_maturidade} nome={item.nivel_maturidade_nome} />
             </div>
           </div>
         ))}
